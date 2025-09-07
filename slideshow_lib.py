@@ -1,9 +1,11 @@
-# File: slideshow.py
+# File: slideshow_lib.py
 
 import os
 import math
 from PIL import ExifTags, Image, ImageTk, ImageOps
 import tkinter as tk
+import config
+import gc
 
 class Slideshow:
     def __init__(self, root, combined_images, delay, screen_width, screen_height):
@@ -13,6 +15,7 @@ class Slideshow:
         self.screen_width = screen_width
         self.screen_height = screen_height
         self.index = 0
+        self.current_photo = None  # Track current photo for cleanup
 
         self.label = tk.Label(root)
         self.label.pack()
@@ -21,24 +24,50 @@ class Slideshow:
 
     def update_image(self):
         if self.index < len(self.combined_images):
+            # Clean up previous photo
+            if self.current_photo:
+                self.label.config(image='')
+                self.current_photo = None
+            
             image = self.combined_images[self.index]
             photo = ImageTk.PhotoImage(image)
             self.label.config(image=photo)
             self.label.image = photo
+            self.current_photo = photo  # Track for cleanup
 
             self.index += 1
+            
+            # Periodic garbage collection
+            if self.index % 10 == 0:
+                gc.collect()
+            
             self.root.after(self.delay, self.update_image)
         else:
+            # Clean up before quit
+            self.cleanup()
             # Schedule the next batch of images (if any)
             self.root.after(0, self.root.quit)
     
     def reset(self, combined_images):
+        # Clean up old images
+        if self.current_photo:
+            self.label.config(image='')
+            self.current_photo = None
+        
         self.combined_images = combined_images
         self.index = 0
+        gc.collect()  # Force garbage collection on reset
         self.update_image()
+    
+    def cleanup(self):
+        """Clean up resources"""
+        if self.current_photo:
+            self.label.config(image='')
+            self.current_photo = None
+        gc.collect()
 
 def get_image_files(directory):
-    supported_formats = ('.jpg', '.jpeg', '.png', '.bmp', '.gif')
+    supported_formats = config.MEDIA['supported_image_formats']
     all_files = [os.path.join(directory, f) for f in os.listdir(directory) if (f.lower().endswith(supported_formats) and not f.lower().startswith("."))]
     return all_files
 
@@ -60,12 +89,15 @@ def correct_orientation(image):
         pass
     return image
 
-def create_combined_images(image_files, screen_width, screen_height, border_size=30):
+def create_combined_images(image_files, screen_width, screen_height, border_size=None):
+    if border_size is None:
+        border_size = config.SLIDESHOW['border_size']
+    
     combined_images = []
     current_image_row = []
     current_width = 0
-    border_height = 50  # Fixed border height
-    adaptive_top_height = border_height + 10
+    border_height = config.SLIDESHOW['border_height']
+    adaptive_top_height = config.SLIDESHOW['adaptive_top_height']
     
     for image_file in image_files:
         img = Image.open(image_file)

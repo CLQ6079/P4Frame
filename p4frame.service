@@ -1,0 +1,47 @@
+[Unit]
+Description=P4Frame Media Display Service
+After=multi-user.target graphical.target
+Wants=graphical.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/P4Frame
+
+# Main service command
+ExecStart=/usr/bin/python3 /home/pi/P4Frame/media_frame.py
+
+# Environment variables
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/pi/.Xauthority"
+Environment="HOME=/home/pi"
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Resource limits
+MemoryMax=600M
+MemorySwapMax=200M
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=p4frame
+
+# Security hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/Pictures /home/pi/logs /var/log/video_converter
+NoNewPrivileges=true
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=graphical.target

@@ -1,0 +1,75 @@
+{
+  "DISPLAY": {
+    "screen_width": 1920,
+    "screen_height": 1080,
+    "fullscreen": true,
+    "hide_cursor": true,
+    "background_color": "black"
+  },
+  
+  "MEDIA": {
+    "media_directory": "/home/pi/Pictures",
+    "photo_delay": 5000,
+    "refresh_interval": 300000,
+    "supported_image_formats": [".jpg", ".jpeg", ".png", ".bmp", ".gif"],
+    "supported_video_formats": [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm", ".m4v"]
+  },
+  
+  "VIDEO_CONVERSION": {
+    "enabled": true,
+    "check_interval": 60,
+    "cpu_cores": 2,
+    "delete_originals": true,
+    "converted_subfolder": "converted",
+    "codec": "libx264",
+    "preset": "faster",
+    "crf": 23,
+    "max_bitrate": "2M",
+    "buffer_size": "4M",
+    "audio_codec": "aac",
+    "audio_bitrate": "128k",
+    "timeout": 3600
+  },
+  
+  "LOGGING": {
+    "enabled": true,
+    "log_directory": "/var/log/video_converter",
+    "log_level": "INFO",
+    "log_to_console": true,
+    "log_to_file": true
+  },
+  
+  "SLIDESHOW": {
+    "batch_size": 10,
+    "border_size": 30,
+    "border_height": 50,
+    "adaptive_top_height": 60
+  },
+  
+  "VIDEO_PLAYER": {
+    "scale_factor": 0.9,
+    "vlc_options": "--no-xlib",
+    "gradient_start": [20, 20, 60],
+    "gradient_end": [50, 30, 100]
+  },
+  
+  "SYSTEM": {
+    "virtual_display": ":0.0",
+    "escape_key_exit": true
+  },
+  
+  "SERVICE": {
+    "user": "pi",
+    "group": "pi",
+    "working_directory": "/home/pi/P4Frame",
+    "restart_on_failure": true,
+    "restart_delay": 10
+  },
+  
+  "DEBUG": {
+    "enabled": false,
+    "verbose_logging": false,
+    "show_fps": false,
+    "show_media_info": true
+  }
+}

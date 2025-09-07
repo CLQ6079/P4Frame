@@ -1,0 +1,47 @@
+[Unit]
+Description=P4Frame Video Converter Service
+After=multi-user.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/P4Frame
+
+# Main service command (uses config for directory)
+ExecStart=/usr/bin/python3 /home/pi/P4Frame/video_converter.py
+
+# Environment variables
+Environment="HOME=/home/pi"
+
+# Restart policy
+Restart=on-failure
+RestartSec=30
+StartLimitBurst=5
+StartLimitIntervalSec=600
+
+# Resource limits
+MemoryMax=500M
+MemorySwapMax=500M
+CPUQuota=180%
+Nice=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=p4frame-converter
+
+# Security hardening
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/pi/Pictures /home/pi/logs /var/log/video_converter
+NoNewPrivileges=true
+
+# Process management
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
