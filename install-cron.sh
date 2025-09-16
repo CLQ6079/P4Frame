@@ -1,5 +1,12 @@
 #!/bin/bash
-# Script to install the cron job for weekly restart
+#
+# CRON JOB INSTALLER FOR P4FRAME
+# Summary: Sets up automated weekly restart schedule for P4Frame services
+# - Makes restart script executable
+# - Creates necessary log directories
+# - Installs cron job to run every Sunday at 3 AM
+# - Displays current crontab configuration for verification
+#
 
 echo "Installing P4Frame weekly restart cron job..."
 

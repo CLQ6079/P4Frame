@@ -1,5 +1,12 @@
 #!/bin/bash
-# Weekly restart script for P4Frame service
+#
+# CRON RESTART SCRIPT FOR P4FRAME
+# Summary: Performs weekly maintenance restart of P4Frame services
+# - Gracefully stops P4Frame and video converter services
+# - Cleans up temporary files and manages log file sizes
+# - Restarts services and maintains restart logs
+# - Designed to run weekly via cron (Sunday 3 AM)
+#
 # Add to crontab with: crontab -e
 # Add line: 0 3 * * 0 /home/pi/P4Frame/cron-restart.sh
 
