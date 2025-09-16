@@ -107,7 +107,7 @@ def create_combined_images(image_files, screen_width, screen_height, border_size
         # Rescale image based on screen height minus border height
         scaled_height = screen_height - 2 * border_height
         scaled_width = int(img_width * scaled_height / img_height)
-        scaled_img = img.resize((scaled_width, scaled_height), Image.ANTIALIAS)
+        scaled_img = img.resize((scaled_width, scaled_height), Image.LANCZOS)
         
         if current_width + scaled_width + (len(current_image_row) * border_size) <= screen_width:
             current_image_row.append(scaled_img)

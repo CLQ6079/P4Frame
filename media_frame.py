@@ -21,7 +21,8 @@ class MediaFrame:
         self.screen_width = screen_width or config.DISPLAY['screen_width']
         self.screen_height = screen_height or config.DISPLAY['screen_height']
         self.batch_size = config.SLIDESHOW.get('batch_size', 10)
-        
+        self.max_cache_size = config.MEMORY_MANAGEMENT.get('max_cached_images', 3)
+
         # Hide cursor for kiosk mode
         if config.DISPLAY['hide_cursor']:
             root.config(cursor="none")
