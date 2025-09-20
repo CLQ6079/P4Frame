@@ -64,9 +64,10 @@ SLIDESHOW = {
 
 # === Video Player Settings ===
 VIDEO_PLAYER = {
+    'enabled': True,            # Enable/disable video playback (slideshow only if False)
     'scale_factor': 0.9,        # Use 90% of screen for video display
     'vlc_options': '--no-xlib', # VLC instance options
-    
+
     # Gradient background colors (RGB)
     'gradient_start': (20, 20, 60),   # Dark blue
     'gradient_end': (50, 30, 100),    # Dark purple

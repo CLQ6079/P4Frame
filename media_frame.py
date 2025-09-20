@@ -55,7 +55,9 @@ class MediaFrame:
         self.process_next_batch()
         
         # Initialize components
-        self.video_player = VideoPlayer(root, screen_width, screen_height)
+        self.video_player = None
+        if config.VIDEO_PLAYER.get('enabled', True):
+            self.video_player = VideoPlayer(root, self.screen_width, self.screen_height)
         self.photo_label = tk.Label(root, bg='black')
         
         # Memory management
@@ -177,11 +179,16 @@ class MediaFrame:
         
         # Get current media item
         media_type, media_item = self.media_queue[self.current_index]
-        
+
         if media_type == 'photo':
             self.show_photo(media_item)
-        else:
+        elif media_type == 'video' and config.VIDEO_PLAYER.get('enabled', True):
             self.show_video(media_item)
+        else:
+            # Skip video if player disabled, move to next item
+            self.current_index += 1
+            self.root.after(100, self.show_next_media)  # Quick transition to next
+            return
         
         # Move to next item
         self.current_index += 1
@@ -206,8 +213,9 @@ class MediaFrame:
     
     def show_photo(self, combined_image):
         """Display a combined photo image"""
-        # Hide video player
-        self.video_player.main_frame.pack_forget()
+        # Hide video player if it exists
+        if self.video_player:
+            self.video_player.main_frame.pack_forget()
         
         # Clean up previous photo to prevent memory leak
         if self.current_photo:
@@ -250,7 +258,8 @@ class MediaFrame:
         self.cleanup_image_cache()
         
         # Clean up video player
-        self.video_player.cleanup()
+        if self.video_player:
+            self.video_player.cleanup()
         
         # Force garbage collection
         gc.collect()
