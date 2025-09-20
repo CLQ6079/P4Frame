@@ -42,24 +42,39 @@ class VideoConverterService:
     def find_unconverted_videos(self):
         """Find videos that need conversion"""
         unconverted = []
+        logging.debug(f"DEBUG: Scanning directory: {self.watch_dir}")
+        logging.debug(f"DEBUG: Looking for extensions: {self.video_extensions}")
         
         try:
-            for file in os.listdir(self.watch_dir):
+            all_files = os.listdir(self.watch_dir)
+            logging.debug(f"DEBUG: Found {len(all_files)} total files in directory")
+            for file in all_files:
+                logging.debug(f"DEBUG: Checking file: {file}")
                 if file.lower().endswith(self.video_extensions) and not file.startswith('.'):
+                    logging.debug(f"DEBUG: File matches video extension: {file}")
                     file_path = os.path.join(self.watch_dir, file)
-                    
+
                     # Skip if it's in the converted directory
                     if 'converted' in file_path:
+                        logging.debug(f"DEBUG: Skipping converted file: {file}")
                         continue
-                    
+
                     # Check if already converted
                     converted_path = os.path.join(self.converted_dir, f"{Path(file).stem}_h264.mp4")
+                    logging.debug(f"DEBUG: Checking if converted version exists: {converted_path}")
                     if not os.path.exists(converted_path):
+                        logging.debug(f"DEBUG: Adding to conversion queue: {file}")
                         unconverted.append(file_path)
+                    else:
+                        logging.debug(f"DEBUG: Already converted, skipping: {file}")
+                else:
+                    logging.debug(f"DEBUG: File doesn't match criteria: {file}")
                         
         except Exception as e:
             logging.error(f"Error scanning directory: {e}")
-            
+            logging.debug(f"DEBUG: Exception details: {type(e).__name__}: {str(e)}")
+
+        logging.debug(f"DEBUG: Found {len(unconverted)} unconverted videos")
         return unconverted
     
     def check_ffmpeg(self):
@@ -75,7 +90,7 @@ class VideoConverterService:
         """Convert a single video to H.264"""
         filename = Path(input_path).stem
         output_path = os.path.join(self.converted_dir, f"{filename}_h264.mp4")
-        temp_path = output_path + '.tmp'
+        temp_path = output_path + config.VIDEO_CONVERSION['tmp_extension']
         
         # FFmpeg command from configuration
         command = [
@@ -90,6 +105,7 @@ class VideoConverterService:
             '-b:a', config.VIDEO_CONVERSION['audio_bitrate'],
             '-threads', str(self.cpu_cores),
             '-movflags', '+faststart',  # Optimize for streaming
+            '-f', 'mp4',            # Force MP4 format for Windows temp files
             '-y',                   # Overwrite
             temp_path
         ]
@@ -135,31 +151,43 @@ class VideoConverterService:
     
     def run_once(self):
         """Run one conversion cycle"""
+        logging.debug(f"DEBUG: Starting conversion cycle")
         videos = self.find_unconverted_videos()
         
         if videos:
             logging.info(f"Found {len(videos)} videos to convert")
             for video in videos:
+                logging.debug(f"DEBUG: Converting video: {video}")
                 self.convert_video(video)
-        
+        else:
+            logging.debug(f"DEBUG: No videos found to convert")
+
+        logging.debug(f"DEBUG: Conversion cycle complete, processed {len(videos)} videos")
         return len(videos)
     
     def run_service(self):
         """Run as continuous service"""
         logging.info(f"Video converter service started")
         logging.info(f"Watching directory: {self.watch_dir}")
+        logging.info(f"Converted directory: {self.converted_dir}")
         logging.info(f"Check interval: {self.check_interval} seconds")
         logging.info(f"CPU cores: {self.cpu_cores}")
+        logging.debug(f"DEBUG: Directory exists: {os.path.exists(self.watch_dir)}")
+        logging.debug(f"DEBUG: Directory is readable: {os.access(self.watch_dir, os.R_OK)}")
         
         if not self.check_ffmpeg():
             sys.exit(1)
         
         while True:
             try:
+                logging.debug(f"DEBUG: Starting new conversion cycle")
                 converted_count = self.run_once()
                 if converted_count > 0:
                     logging.info(f"Conversion cycle complete. Processed {converted_count} videos")
-                
+                else:
+                    logging.debug(f"DEBUG: No videos processed this cycle")
+
+                logging.debug(f"DEBUG: Sleeping for {self.check_interval} seconds")
                 time.sleep(self.check_interval)
                 
             except KeyboardInterrupt:

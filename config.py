@@ -30,7 +30,8 @@ VIDEO_CONVERSION = {
     'cpu_cores': 2,                     # CPU cores to use for conversion
     'delete_originals': True,           # Delete original videos after conversion
     'converted_subfolder': 'converted', # Subfolder for converted videos
-    
+    'tmp_extension': '.tmp',           # Use .temp instead of .tmp for Windows compatibility
+
     # FFmpeg settings
     'codec': 'libx264',                 # Video codec (H.264)
     'preset': 'faster',                 # Encoding speed preset
@@ -46,8 +47,8 @@ VIDEO_CONVERSION = {
 LOGGING = {
     'enabled': True,
     'log_directory': '/var/log/video_converter',
-    'log_level': 'INFO',
-    'log_to_console': False,
+    'log_level': 'DEBUG',
+    'log_to_console': True,
     'log_to_file': True,
 }
 
