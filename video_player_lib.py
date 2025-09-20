@@ -3,7 +3,7 @@
 import os
 import vlc
 import tkinter as tk
-from PIL import Image, ImageDraw, ImageTk
+from PIL import ImageTk
 import threading
 import time
 from pathlib import Path
@@ -27,18 +27,14 @@ class VideoPlayer:
         self.screen_height = screen_height
         self.current_video = None
         self.on_complete_callback = None
-        self.gradient_photo = None  # Track for cleanup
         
-        # Create main frame with gradient background
-        self.main_frame = tk.Frame(root, bg='black', width=screen_width, height=screen_height)
+        # Create main frame with white background
+        self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         self.main_frame.pack_propagate(False)
-        
-        # Create gradient background
-        self.setup_gradient_background()
-        
+
         # Create video frame (centered)
-        self.video_frame = tk.Frame(self.main_frame, bg='black')
+        self.video_frame = tk.Frame(self.main_frame, bg='white')
         self.video_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         
         # Use singleton VLC instance
@@ -48,26 +44,6 @@ class VideoPlayer:
         # Event manager for video end detection
         self.event_manager = self.player.event_manager()
         self.event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.on_video_ended)
-        
-    def setup_gradient_background(self):
-        """Create a gradient background image"""
-        gradient = Image.new('RGB', (self.screen_width, self.screen_height))
-        draw = ImageDraw.Draw(gradient)
-        
-        # Create vertical gradient from config colors
-        start_r, start_g, start_b = config.VIDEO_PLAYER['gradient_start']
-        end_r, end_g, end_b = config.VIDEO_PLAYER['gradient_end']
-        
-        for y in range(self.screen_height):
-            ratio = y / self.screen_height
-            r = int(start_r + (end_r - start_r) * ratio)
-            g = int(start_g + (end_g - start_g) * ratio)
-            b = int(start_b + (end_b - start_b) * ratio)
-            draw.rectangle([(0, y), (self.screen_width, y+1)], fill=(r, g, b))
-        
-        self.gradient_photo = ImageTk.PhotoImage(gradient)
-        self.bg_label = tk.Label(self.main_frame, image=self.gradient_photo)
-        self.bg_label.place(x=0, y=0, relwidth=1, relheight=1)
         
     def play_video(self, video_path, on_complete=None):
         """Play a video file with proper scaling"""
@@ -150,9 +126,6 @@ class VideoPlayer:
             self.player.release()
             self.player = None
         
-        # Clean up gradient photo
-        if self.gradient_photo:
-            self.gradient_photo = None
         
         # Note: Don't release the singleton VLC instance
         # It will be reused for the lifetime of the application
