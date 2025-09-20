@@ -331,18 +331,21 @@ class MediaFrame:
 def main():
     parser = argparse.ArgumentParser(description='Mixed Photo/Video Frame for Raspberry Pi')
     parser.add_argument('media_dir', nargs='?', help='Directory containing photos and videos')
-    parser.add_argument('--width', type=int, default=None, help=f'Screen width (default: {config.DISPLAY["screen_width"]})')
-    parser.add_argument('--height', type=int, default=None, help=f'Screen height (default: {config.DISPLAY["screen_height"]})')
-    parser.add_argument('--delay', type=int, default=None, help=f'Photo display time in ms (default: {config.MEDIA["photo_delay"]})')
+    parser.add_argument('--width', type=int, default=None, help='Screen width')
+    parser.add_argument('--height', type=int, default=None, help='Screen height')
+    parser.add_argument('--delay', type=int, default=None, help='Photo display time in ms')
     parser.add_argument('--config', type=str, help='Path to custom config file')
-    
+
     args = parser.parse_args()
-    
-    # Load custom config if specified
+
+    # Load custom config FIRST if specified
     if args.config:
         config.load_custom_config(args.config)
-    
-    # Use config defaults if not specified
+
+    # Now set defaults from loaded config
+    screen_width = args.width or config.DISPLAY['screen_width']
+    screen_height = args.height or config.DISPLAY['screen_height']
+    photo_delay = args.delay or config.MEDIA['photo_delay']
     media_dir = args.media_dir or config.get_media_directory()
     
     if not os.path.exists(media_dir):
@@ -357,9 +360,9 @@ def main():
     app = MediaFrame(
         root,
         media_dir,
-        photo_delay=args.delay,
-        screen_width=args.width,
-        screen_height=args.height
+        photo_delay=photo_delay,
+        screen_width=screen_width,
+        screen_height=screen_height
     )
     
     # Start refresh timer
