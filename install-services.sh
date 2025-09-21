@@ -29,6 +29,11 @@ echo "Creating directories..."
 mkdir -p /home/pi/logs
 mkdir -p /home/pi/Pictures/converted
 
+# Create all directories needed by the services
+mkdir -p /home/pi/P4Frame/logs
+mkdir -p /var/log/video_converter
+mkdir -p /share/study/lgy_photoframe/data
+
 # Install log rotation
 if [ "$EUID" -eq 0 ]; then
     if [ -f "logrotate.conf" ]; then
@@ -65,16 +70,12 @@ if [ "$EUID" -eq 0 ]; then
     chown -R pi:pi /home/pi/P4Frame
     chmod +x /home/pi/P4Frame/media_frame.py
 
-    # Create P4Frame log directory
-    mkdir -p /home/pi/P4Frame/logs
+    # Set permissions for all service directories
+    echo "Setting directory permissions..."
     chown pi:pi /home/pi/P4Frame/logs
-
-    # Ensure media directory permissions (if it exists)
-    if [ -d "/share/study/lgy_photoframe/data" ]; then
-        echo "Setting media directory permissions..."
-        chown -R pi:pi /share/study/lgy_photoframe/data
-        chmod -R 755 /share/study/lgy_photoframe/data
-    fi
+    chown pi:pi /var/log/video_converter
+    chown -R pi:pi /share/study/lgy_photoframe/data
+    chmod -R 755 /share/study/lgy_photoframe/data
 
     # Install as system service for proper display access
     if [ -f "p4frame.service" ]; then
