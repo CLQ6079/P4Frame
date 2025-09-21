@@ -89,7 +89,7 @@ journalctl -u video-converter.service -f
 journalctl --user -u p4frame.service -f
 
 # Converter logs (if available)
-tail -f /var/log/video_converter/converter_*.log
+tail -f /home/pi/P4Frame/logs/video_converter/converter_*.log
 
 # Weekly restart logs
 tail -f /home/pi/logs/p4frame-restart.log

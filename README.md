@@ -104,7 +104,7 @@ Usage Examples:
 ```
 # Application Logs
 /home/pi/P4Frame/logs/           # Main application logs
-/var/log/video_converter/        # Video converter logs
+/home/pi/P4Frame/logs/video_converter/        # Video converter logs
   └── converter_YYYYMMDD.log     # Daily conversion logs
 /home/pi/logs/                   # System/cron logs
   └── p4frame-restart.log        # Weekly restart logs

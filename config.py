@@ -46,7 +46,7 @@ VIDEO_CONVERSION = {
 # === Logging Settings ===
 LOGGING = {
     'enabled': True,
-    'log_directory': '/var/log/video_converter',
+    'log_directory': '/home/pi/P4Frame/logs/video_converter',
     'log_level': 'DEBUG',
     'log_to_console': True,
     'log_to_file': True,

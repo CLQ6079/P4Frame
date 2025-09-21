@@ -35,7 +35,7 @@ SyslogIdentifier=p4frame
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame/logs /var/log/video_converter /home/pi/P4Frame
+ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame
 NoNewPrivileges=true
 
 # Process management

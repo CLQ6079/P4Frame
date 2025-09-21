@@ -30,8 +30,7 @@ mkdir -p /home/pi/logs
 mkdir -p /home/pi/Pictures/converted
 
 # Create all directories needed by the services
-mkdir -p /home/pi/P4Frame/logs
-mkdir -p /var/log/video_converter
+mkdir -p /home/pi/P4Frame/logs/video_converter
 mkdir -p /share/study/lgy_photoframe/data
 
 # Install log rotation
@@ -72,8 +71,7 @@ if [ "$EUID" -eq 0 ]; then
 
     # Set permissions for all service directories
     echo "Setting directory permissions..."
-    chown pi:pi /home/pi/P4Frame/logs
-    chown pi:pi /var/log/video_converter
+    chown -R pi:pi /home/pi/P4Frame/logs
     chown -R pi:pi /share/study/lgy_photoframe/data
     chmod -R 755 /share/study/lgy_photoframe/data
 
