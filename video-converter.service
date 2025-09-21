@@ -8,8 +8,8 @@ User=pi
 Group=pi
 WorkingDirectory=/home/pi/P4Frame
 
-# Main service command (uses config for directory)
-ExecStart=/usr/bin/python3 /home/pi/P4Frame/video_converter.py
+# Main service command with config file
+ExecStart=/usr/bin/python3 /home/pi/P4Frame/video_converter.py --config /home/pi/P4Frame/p4frame_raspi4.conf
 
 # Environment variables
 Environment="HOME=/home/pi"
@@ -35,7 +35,7 @@ SyslogIdentifier=p4frame-converter
 PrivateTmp=yes
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/pi/Pictures /home/pi/logs /var/log/video_converter
+ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame/logs /var/log/video_converter /home/pi/P4Frame
 NoNewPrivileges=true
 
 # Process management

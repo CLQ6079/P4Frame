@@ -30,6 +30,7 @@ scp *.py *.sh *.service *.conf pi@raspberrypi:/home/pi/P4Frame/
 2. Run the automated installation:
 ```bash
 cd /home/pi/P4Frame
+chmod +x ./install-services.sh
 sudo ./install-services.sh
 ```
 
