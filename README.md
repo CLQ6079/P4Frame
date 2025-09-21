@@ -88,8 +88,9 @@ Usage Examples:
 
 ## File Structure
 
+### Media Directory
 ```
-/home/pi/Pictures/
+/share/study/lgy_photoframe/data/
 ├── photo1.jpg          # Original photos
 ├── photo2.png
 ├── video1.avi          # Original videos (deleted after conversion)
@@ -97,4 +98,23 @@ Usage Examples:
 └── converted/          # Converted H.264 videos
     ├── video1_h264.mp4
     └── video2_h264.mp4
+```
+
+### Files to Write
+```
+# Application Logs
+/home/pi/P4Frame/logs/           # Main application logs
+/var/log/video_converter/        # Video converter logs
+  └── converter_YYYYMMDD.log     # Daily conversion logs
+/home/pi/logs/                   # System/cron logs
+  └── p4frame-restart.log        # Weekly restart logs
+
+# Temporary Files
+/tmp/                            # Temporary conversion files
+  ├── p4frame-*                  # Temp conversion files
+  └── restart.tmp                # Log rotation temp files
+
+# SystemD Journal
+# View with: journalctl -u p4frame.service -f
+# View with: journalctl -u video-converter.service -f
 ```

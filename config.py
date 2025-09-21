@@ -130,11 +130,14 @@ def get_converted_directory():
 def get_log_directory():
     """Get the log directory path, create if needed"""
     log_dir = LOGGING['log_directory']
-    
-    # Fallback to user home if system log dir not writable
-    if not os.access(os.path.dirname(log_dir), os.W_OK):
-        log_dir = os.path.expanduser('~/logs/video_converter')
-    
+    parent_dir = os.path.dirname(log_dir)
+
+    # Check if parent directory is writable
+    if not os.access(parent_dir, os.W_OK):
+        raise PermissionError(f"Cannot write to log directory parent: {parent_dir}. "
+                            f"Current user: {os.getenv('USER', 'unknown')}, "
+                            f"Configured log directory: {log_dir}")
+
     os.makedirs(log_dir, exist_ok=True)
     return log_dir
 
