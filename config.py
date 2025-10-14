@@ -32,14 +32,16 @@ VIDEO_CONVERSION = {
     'converted_subfolder': 'converted', # Subfolder for converted videos
     'tmp_extension': '.tmp',           # Use .temp instead of .tmp for Windows compatibility
 
-    # FFmpeg settings
+    # FFmpeg settings optimized for Raspberry Pi 4 playback
     'codec': 'libx264',                 # Video codec (H.264)
-    'preset': 'faster',                 # Encoding speed preset
-    'crf': 23,                          # Quality factor (lower = better, 23 is good balance)
-    'max_bitrate': '2M',                # Maximum video bitrate
-    'buffer_size': '4M',                # Video buffer size
+    'preset': 'medium',                 # Better compression than 'faster'
+    'crf': 28,                          # Higher CRF for lower bitrate (optimized for Pi 4)
+    'max_bitrate': '1M',                # Reduced bitrate for Pi 4 memory bandwidth
+    'buffer_size': '2M',                # Smaller buffer to reduce memory pressure
+    'profile': 'baseline',              # H.264 baseline profile for Pi compatibility
+    'level': '3.1',                     # H.264 level 3.1 for Pi hardware decoder
     'audio_codec': 'aac',               # Audio codec
-    'audio_bitrate': '128k',            # Audio bitrate
+    'audio_bitrate': '96k',             # Reduced audio bitrate
     'timeout': 3600,                    # Conversion timeout in seconds (1 hour)
 }
 
