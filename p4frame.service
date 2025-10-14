@@ -6,7 +6,6 @@ Wants=graphical.target
 [Service]
 Type=simple
 User=pi
-Group=pi
 WorkingDirectory=/home/pi/P4Frame
 
 # Main service command with config file
