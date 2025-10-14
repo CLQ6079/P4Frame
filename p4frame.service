@@ -33,7 +33,7 @@ SyslogIdentifier=p4frame
 
 # Security hardening
 PrivateTmp=yes
-ProtectSystem=strict
+ProtectSystem=false
 ProtectHome=read-only
 ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame
 NoNewPrivileges=true
