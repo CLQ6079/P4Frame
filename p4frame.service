@@ -31,12 +31,12 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=p4frame
 
-# Security hardening
+# Security hardening (relaxed for GUI applications)
 PrivateTmp=yes
 ProtectSystem=false
-ProtectHome=read-only
-ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame
-NoNewPrivileges=true
+ProtectHome=false
+ReadWritePaths=/share/study/lgy_photoframe/data /home/pi/P4Frame /tmp /var/tmp
+NoNewPrivileges=false
 
 # Process management
 KillMode=mixed
