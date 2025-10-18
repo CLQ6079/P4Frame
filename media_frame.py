@@ -38,10 +38,17 @@ class MediaFrame:
         
         # Bind volume keys for navigation with debouncing
         self.last_key_time = 0
-        root.bind('<XF86AudioRaiseVolume>', self.on_volume_up)
-        root.bind('<XF86AudioLowerVolume>', self.on_volume_down)
-        root.bind('<KeyPress-AudioRaiseVolume>', self.on_volume_up)  # Alternative binding
-        root.bind('<KeyPress-AudioLowerVolume>', self.on_volume_down)  # Alternative binding
+        # Try to bind volume keys with error handling
+        try:
+            root.bind('<XF86AudioRaiseVolume>', self.on_volume_up)
+            root.bind('<XF86AudioLowerVolume>', self.on_volume_down)
+        except tk.TclError:
+            try:
+                # Alternative bindings for different systems
+                root.bind('<AudioRaiseVolume>', self.on_volume_up)
+                root.bind('<AudioLowerVolume>', self.on_volume_down)
+            except tk.TclError:
+                print("Warning: Could not bind volume keys, using only arrow keys")
         
         # Also bind arrow keys as fallback
         root.bind('<Right>', self.on_volume_up)
