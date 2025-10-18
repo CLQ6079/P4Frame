@@ -75,6 +75,7 @@ VIDEO_PLAYER = {
 SYSTEM = {
     'virtual_display': ':0.0',  # Virtual display for headless operation
     'escape_key_exit': True,    # Allow Escape key to exit application
+    'key_debounce_time': 0.5,   # Debounce time for volume keys in seconds
 }
 
 # === User Settings ===

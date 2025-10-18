@@ -104,6 +104,11 @@ class VideoPlayer:
         if self.player:
             self.player.pause()
     
+    def hide(self):
+        """Hide the video player frame"""
+        if hasattr(self, 'main_frame'):
+            self.main_frame.pack_forget()
+    
     def get_converted_videos(self, directory):
         """Get list of converted (H.264) video files"""
         video_extensions = config.MEDIA['supported_video_formats']

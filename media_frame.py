@@ -36,6 +36,23 @@ class MediaFrame:
         if config.SYSTEM['escape_key_exit']:
             root.bind('<Escape>', lambda e: self.quit())
         
+        # Bind volume keys for navigation with debouncing
+        self.last_key_time = 0
+        root.bind('<XF86AudioRaiseVolume>', self.on_volume_up)
+        root.bind('<XF86AudioLowerVolume>', self.on_volume_down)
+        root.bind('<KeyPress-AudioRaiseVolume>', self.on_volume_up)  # Alternative binding
+        root.bind('<KeyPress-AudioLowerVolume>', self.on_volume_down)  # Alternative binding
+        
+        # Also bind arrow keys as fallback
+        root.bind('<Right>', self.on_volume_up)
+        root.bind('<Left>', self.on_volume_down)
+        
+        # Make sure the window can receive keyboard events
+        root.focus_set()
+        
+        # Initialize timer tracking
+        self._scheduled_after = None
+        
         # Get media files
         self.all_image_files = get_image_files(self.media_dir)
         self.video_files = self.get_video_files()
@@ -187,7 +204,7 @@ class MediaFrame:
         else:
             # Skip video if player disabled, move to next item
             self.current_index += 1
-            self.root.after(100, self.show_next_media)  # Quick transition to next
+            self._scheduled_after = self.root.after(100, self.show_next_media)  # Quick transition to next
             return
         
         # Move to next item
@@ -234,7 +251,7 @@ class MediaFrame:
         self.check_memory_cleanup()
         
         # Schedule next media
-        self.root.after(self.photo_delay, self.show_next_media)
+        self._scheduled_after = self.root.after(self.photo_delay, self.show_next_media)
     
     def show_video(self, video_path):
         """Play a video"""
@@ -326,6 +343,151 @@ class MediaFrame:
         
         # Check again based on config
         self.root.after(config.MEDIA['refresh_interval'], self.refresh_media)
+    
+    def on_volume_up(self, event=None):
+        """Handle volume up key press - go to next media"""
+        current_time = time.time()
+        if current_time - self.last_key_time < config.SYSTEM['key_debounce_time']:
+            return  # Ignore rapid key presses
+        
+        self.last_key_time = current_time
+        print("Volume Up: Next media")
+        self.navigate_next()
+    
+    def on_volume_down(self, event=None):
+        """Handle volume down key press - go to previous media"""
+        current_time = time.time()
+        if current_time - self.last_key_time < config.SYSTEM['key_debounce_time']:
+            return  # Ignore rapid key presses
+        
+        self.last_key_time = current_time
+        print("Volume Down: Previous media")
+        self.navigate_previous()
+    
+    def navigate_next(self):
+        """Navigate to next media item"""
+        # Advance to next item and let auto-playing continue
+        self.current_index += 1
+        self.show_next_media()
+    
+    def navigate_previous(self):
+        """Navigate to previous media item"""
+        # Go to previous item
+        self.current_index -= 1
+        if self.current_index < 0:
+            # Wrap to end of queue
+            self.current_index = len(self.media_queue) - 1 if self.media_queue else 0
+        
+        # Show the previous item and let auto-playing continue
+        self.show_media_at_index_with_auto_advance()
+    
+    def show_media_at_index(self):
+        """Display media item at current index"""
+        if not self.media_queue or self.current_index >= len(self.media_queue):
+            return
+        
+        # Get current media item
+        media_type, media_item = self.media_queue[self.current_index]
+        
+        if media_type == 'photo':
+            # Display photo
+            if media_item is None:
+                print("Warning: Photo item is None")
+                self.current_index += 1
+                self._scheduled_after = self.root.after(100, self.show_media_at_index)
+                return
+            
+            # Clean up previous photo
+            if self.current_photo:
+                del self.current_photo
+                self.current_photo = None
+            
+            # Hide video player if active
+            if self.video_player:
+                self.video_player.hide()
+            
+            # Display the photo
+            pil_image, _ = media_item
+            photo = tk.PhotoImage(pil_image)
+            
+            self.current_photo = photo  # Keep reference to prevent garbage collection
+            self.photo_label.configure(image=photo)
+            self.photo_label.pack(fill='both', expand=True)
+            
+        elif media_type == 'video':
+            # Play video
+            video_path = media_item
+            if not os.path.exists(video_path):
+                print(f"Video file not found: {video_path}")
+                self.current_index += 1
+                self._scheduled_after = self.root.after(100, self.show_media_at_index)
+                return
+            
+            # Hide photo label
+            self.photo_label.pack_forget()
+            
+            # Play video (no auto-advance callback since we're in manual mode)
+            if self.video_player:
+                self.video_player.play_video(video_path, on_complete=None)
+    
+    def show_media_at_index_with_auto_advance(self):
+        """Display media item at current index with auto-advance enabled"""
+        if not self.media_queue or self.current_index >= len(self.media_queue):
+            return
+        
+        # Get current media item
+        media_type, media_item = self.media_queue[self.current_index]
+        
+        if media_type == 'photo':
+            # Display photo with auto-advance
+            if media_item is None:
+                print("Warning: Photo item is None")
+                self.current_index += 1
+                self._scheduled_after = self.root.after(100, self.show_next_media)
+                return
+            
+            # Clean up previous photo
+            if self.current_photo:
+                del self.current_photo
+                self.current_photo = None
+            
+            # Hide video player if active
+            if self.video_player:
+                self.video_player.hide()
+            
+            # Display the photo
+            pil_image, _ = media_item
+            photo = tk.PhotoImage(pil_image)
+            
+            self.current_photo = photo  # Keep reference to prevent garbage collection
+            self.photo_label.configure(image=photo)
+            self.photo_label.pack(fill='both', expand=True)
+            
+            # Memory management
+            self.check_memory_cleanup()
+            
+            # Schedule next media with auto-advance
+            self.current_index += 1
+            self._scheduled_after = self.root.after(self.photo_delay, self.show_next_media)
+            
+        elif media_type == 'video':
+            # Play video with auto-advance
+            video_path = media_item
+            if not os.path.exists(video_path):
+                print(f"Video file not found: {video_path}")
+                self.current_index += 1
+                self._scheduled_after = self.root.after(100, self.show_next_media)
+                return
+            
+            # Hide photo label
+            self.photo_label.pack_forget()
+            
+            # Show video player
+            self.video_player.main_frame.pack(fill=tk.BOTH, expand=True)
+            
+            # Play video with auto-advance callback
+            self.current_index += 1
+            self.video_player.play_video(video_path, on_complete=self.show_next_media)
 
 
 def main():
