@@ -12,6 +12,7 @@ from pathlib import Path
 import config
 import gc
 import time
+import logging
 
 class MediaFrame:
     def __init__(self, root, media_dir=None, photo_delay=None, screen_width=None, screen_height=None):
@@ -48,7 +49,7 @@ class MediaFrame:
                 root.bind('<AudioRaiseVolume>', self.on_volume_up)
                 root.bind('<AudioLowerVolume>', self.on_volume_down)
             except tk.TclError:
-                print("Warning: Could not bind volume keys, using only arrow keys")
+                logging.warning("Warning: Could not bind volume keys, using only arrow keys")
         
         # Also bind arrow keys as fallback
         root.bind('<Right>', self.on_volume_up)
@@ -65,10 +66,10 @@ class MediaFrame:
         self.video_files = self.get_video_files()
         
         if config.DEBUG['show_media_info']:
-            print(f"Found {len(self.all_image_files)} images and {len(self.video_files)} videos")
+            logging.info(f"Found {len(self.all_image_files)} images and {len(self.video_files)} videos")
             if len(self.all_image_files) > self.batch_size:
                 total_batches = (len(self.all_image_files) + self.batch_size - 1) // self.batch_size
-                print(f"Will process in {total_batches} batches of up to {self.batch_size} images each")
+                logging.info(f"Will process in {total_batches} batches of up to {self.batch_size} images each")
         
         # Batch processing setup
         self.current_batch_index = 0
@@ -123,7 +124,7 @@ class MediaFrame:
         if batch_files:
             if config.SLIDESHOW.get('show_progress', True) or config.DEBUG.get('verbose_logging', False):
                 total_batches = (len(self.all_image_files) + self.batch_size - 1) // self.batch_size
-                print(f"Loading batch {self.current_batch_index + 1}/{total_batches}: {len(batch_files)} images...")
+                logging.info(f"Loading batch {self.current_batch_index + 1}/{total_batches}: {len(batch_files)} images...")
             
             # Create combined images for this batch only
             batch_combined = create_combined_images(
@@ -139,7 +140,7 @@ class MediaFrame:
             self.manage_batch_cache()
             
             if config.SLIDESHOW.get('show_progress', True):
-                print(f"Batch {self.current_batch_index + 1} ready ({len(batch_combined)} slides created)")
+                logging.info(f"Batch {self.current_batch_index + 1} ready ({len(batch_combined)} slides created)")
         
         return len(batch_files) > 0
     
@@ -176,7 +177,7 @@ class MediaFrame:
     def show_next_media(self):
         """Display next media item in queue"""
         if not self.media_queue:
-            print("No media to display")
+            logging.info("No media to display")
             return
         
         # Check if we need to load more batches
@@ -192,7 +193,7 @@ class MediaFrame:
                 # Wrap around to beginning
                 self.current_batch_index = 0
                 if config.DEBUG.get('verbose_logging', False):
-                    print("Restarting from first batch")
+                    logging.info("Restarting from first batch")
             
             if self.process_next_batch():
                 self.create_media_queue()
@@ -229,7 +230,7 @@ class MediaFrame:
             if start_idx < len(self.all_image_files):
                 batch_files = self.all_image_files[start_idx:end_idx]
                 if batch_files and config.DEBUG.get('verbose_logging', False):
-                    print(f"Preloading batch {next_batch_index + 1}: {len(batch_files)} images")
+                    logging.info(f"Preloading batch {next_batch_index + 1}: {len(batch_files)} images")
         
         # Run in background thread to not block UI
         thread = threading.Thread(target=load_batch, daemon=True)
@@ -317,7 +318,7 @@ class MediaFrame:
             gc.collect()
             self.last_gc_time = current_time
             if config.DEBUG.get('verbose_logging', False):
-                print(f"Garbage collection performed at {current_time}")
+                logging.info(f"Garbage collection performed at {current_time}")
     
     def refresh_media(self):
         """Refresh media lists (for detecting new files)"""
@@ -326,7 +327,7 @@ class MediaFrame:
         new_videos = self.get_video_files()
         
         if len(new_images) != len(self.all_image_files) or len(new_videos) != len(self.video_files):
-            print("Media files changed, refreshing...")
+            logging.info("Media files changed, refreshing...")
             self.all_image_files = new_images
             self.video_files = new_videos
             
@@ -358,7 +359,7 @@ class MediaFrame:
             return  # Ignore rapid key presses
         
         self.last_key_time = current_time
-        print("Volume Up: Next media")
+        logging.debug("Volume Up: Next media")
         self.navigate_next()
     
     def on_volume_down(self, event=None):
@@ -368,7 +369,7 @@ class MediaFrame:
             return  # Ignore rapid key presses
         
         self.last_key_time = current_time
-        print("Volume Down: Previous media")
+        logging.debug("Volume Down: Previous media")
         self.navigate_previous()
     
     def navigate_next(self):
@@ -379,14 +380,14 @@ class MediaFrame:
     
     def navigate_previous(self):
         """Navigate to previous media item"""
-        print(f"Navigate previous: current_index={self.current_index}, queue_length={len(self.media_queue)}")
+        logging.debug(f"Navigate previous: current_index={self.current_index}, queue_length={len(self.media_queue)}")
         
         # Ensure we have a valid media queue
         if not self.media_queue:
-            print("Warning: Empty media queue, recreating...")
+            logging.warning("Warning: Empty media queue, recreating...")
             self.create_media_queue()
             if not self.media_queue:
-                print("Error: Still no media available")
+                logging.error("Error: Still no media available")
                 return
         
         # Go to previous item
@@ -394,12 +395,12 @@ class MediaFrame:
         if self.current_index < 0:
             # Wrap to end of queue
             self.current_index = len(self.media_queue) - 1 if self.media_queue else 0
-            print(f"Wrapped to end: current_index={self.current_index}")
+            logging.info(f"Wrapped to end: current_index={self.current_index}")
         
         # Ensure index is still valid after any changes
         if self.current_index >= len(self.media_queue):
             self.current_index = len(self.media_queue) - 1 if self.media_queue else 0
-            print(f"Clamped index: current_index={self.current_index}")
+            logging.info(f"Clamped index: current_index={self.current_index}")
         
         # Show the previous item and let auto-playing continue
         self.show_media_at_index_with_auto_advance()
@@ -415,7 +416,7 @@ class MediaFrame:
         if media_type == 'photo':
             # Display photo
             if media_item is None:
-                print("Warning: Photo item is None")
+                logging.warning("Warning: Photo item is None")
                 self.current_index += 1
                 self._scheduled_after = self.root.after(100, self.show_media_at_index)
                 return
@@ -441,7 +442,7 @@ class MediaFrame:
             # Play video
             video_path = media_item
             if not os.path.exists(video_path):
-                print(f"Video file not found: {video_path}")
+                logging.info(f"Video file not found: {video_path}")
                 self.current_index += 1
                 self._scheduled_after = self.root.after(100, self.show_media_at_index)
                 return
@@ -455,14 +456,14 @@ class MediaFrame:
     
     def show_media_at_index_with_auto_advance(self):
         """Display media item at current index with auto-advance enabled"""
-        print(f"Show media at index: current_index={self.current_index}, queue_length={len(self.media_queue) if self.media_queue else 0}")
+        logging.debug(f"Show media at index: current_index={self.current_index}, queue_length={len(self.media_queue) if self.media_queue else 0}")
         
         if not self.media_queue:
-            print("Warning: No media queue in show_media_at_index_with_auto_advance")
+            logging.warning("Warning: No media queue in show_media_at_index_with_auto_advance")
             return
             
         if self.current_index >= len(self.media_queue):
-            print(f"Warning: Index {self.current_index} >= queue length {len(self.media_queue)}")
+            logging.warning(f"Warning: Index {self.current_index} >= queue length {len(self.media_queue)}")
             self.current_index = 0  # Reset to beginning
             if not self.media_queue:
                 return
@@ -473,7 +474,7 @@ class MediaFrame:
         if media_type == 'photo':
             # Display photo with auto-advance
             if media_item is None:
-                print("Warning: Photo item is None")
+                logging.warning("Warning: Photo item is None")
                 self.current_index += 1
                 self._scheduled_after = self.root.after(100, self.show_next_media)
                 return
@@ -506,7 +507,7 @@ class MediaFrame:
             # Play video with auto-advance
             video_path = media_item
             if not os.path.exists(video_path):
-                print(f"Video file not found: {video_path}")
+                logging.info(f"Video file not found: {video_path}")
                 self.current_index += 1
                 self._scheduled_after = self.root.after(100, self.show_next_media)
                 return
@@ -535,6 +536,21 @@ def main():
     # Load custom config FIRST if specified
     if args.config:
         config.load_custom_config(args.config)
+    
+    # Configure logging
+    handlers = []
+    if config.LOGGING.get('log_to_console', True):
+        handlers.append(logging.StreamHandler())
+    if config.LOGGING.get('log_to_file', False):
+        log_dir = config.LOGGING.get("log_directory", ".")
+        os.makedirs(log_dir, exist_ok=True)
+        handlers.append(logging.FileHandler(f'{log_dir}/media_frame.log'))
+    
+    logging.basicConfig(
+        level=getattr(logging, config.LOGGING.get('log_level', 'INFO')),
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=handlers or [logging.StreamHandler()]  # Fallback to console if no handlers
+    )
 
     # Now set defaults from loaded config
     screen_width = args.width or config.DISPLAY['screen_width']
@@ -543,7 +559,7 @@ def main():
     media_dir = args.media_dir or config.get_media_directory()
     
     if not os.path.exists(media_dir):
-        print(f"Error: Directory {media_dir} does not exist")
+        logging.error(f"Error: Directory {media_dir} does not exist")
         sys.exit(1)
     
     # Create Tk root
