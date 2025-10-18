@@ -41,32 +41,25 @@ P4Frame is a dual-component system:
    - Uses 2 CPU cores, preserving performance for playback
    - Converts videos to optimized H.264 format
 
-4. **Autocap restarts**:
-   The system is now optimized for weeks/months of continuous operation with:
-   - Automatic memory cleanup
-   - Resource limits enforcement
-   - Weekly preventive restarts
+4. **Background Processing**:
+   - Video converter runs in the background automatically
+   - Optimized for continuous operation with automatic memory cleanup
    - Comprehensive logging with rotation
-   - Graceful failure recovery
+   - Graceful error handling
 
 ## Installation
 
 See [SETUP.md](SETUP.md) for complete installation instructions on Raspberry Pi.
 
-* Install everything
-  sudo ./install-services.sh
+* Start video converter (background)
+python video_converter.py
 
-* Start services
-sudo systemctl start video-converter.service
-systemctl --user start p4frame.service
+* Start media frame (manual)
+python media_frame.py
 
-* Monitor memory usage
-systemctl status p4frame.service
-journalctl --user -u p4frame.service -f
-
-* Manual restart if needed
-sudo systemctl restart video-converter.service
-systemctl --user restart p4frame.service
+* Monitor video converter
+ps aux | grep video_converter
+tail -f logs/video_converter/converter_*.log
 
 ### Controls
 - **ESC**: Exit fullscreen/quit application
@@ -106,15 +99,8 @@ Usage Examples:
 /home/pi/P4Frame/logs/           # Main application logs
 /home/pi/P4Frame/logs/video_converter/        # Video converter logs
   └── converter_YYYYMMDD.log     # Daily conversion logs
-/home/pi/logs/                   # System/cron logs
-  └── p4frame-restart.log        # Weekly restart logs
 
 # Temporary Files
 /tmp/                            # Temporary conversion files
-  ├── p4frame-*                  # Temp conversion files
-  └── restart.tmp                # Log rotation temp files
-
-# SystemD Journal
-# View with: journalctl -u p4frame.service -f
-# View with: journalctl -u video-converter.service -f
+  └── p4frame-*                  # Temp conversion files
 ```

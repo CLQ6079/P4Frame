@@ -24,35 +24,19 @@ pip3 install Pillow python-vlc
 mkdir -p /home/pi/P4Frame
 
 # Copy files (from your development machine)
-scp *.py *.sh *.service *.conf pi@raspberrypi:/home/pi/P4Frame/
+scp *.py *.conf pi@raspberrypi:/home/pi/P4Frame/
 ```
 
-2. Run the automated installation:
+2. Create necessary directories:
 ```bash
 cd /home/pi/P4Frame
-chmod +x ./install-services.sh
-sudo ./install-services.sh
+mkdir -p logs/video_converter
+mkdir -p /home/pi/Pictures/converted
 ```
-
-This script will automatically:
-- Create necessary directories
-- Install systemd services (both system and user)
-- Set up log rotation
-- Configure weekly restart cron job
-- Set up 2GB swap file if needed
-- Enable services for auto-start on boot
 
 ## Configuration
 
-The system uses centralized configuration in `config.py`. You can:
-
-### Auto-start Configuration
-
-Services are automatically configured to start on boot after installation. The system includes:
-- **Resource limits**: Memory capped at 600MB, CPU at 200%
-- **Automatic restart**: Services restart on failure
-- **Weekly restart**: Automatic restart every Sunday at 3 AM
-- **Log rotation**: Automatic log cleanup
+The system uses centralized configuration in `config.py`. You can customize settings by editing the file directly or using a custom JSON config file.
 
 ## File Organization
 
@@ -67,41 +51,38 @@ Services are automatically configured to start on boot after installation. The s
     └── video2_h264.mp4
 ```
 
+## Running the Application
+
+### Start Video Converter (Background)
+```bash
+cd /home/pi/P4Frame
+nohup python3 video_converter.py > logs/video_converter.log 2>&1 &
+```
+
+### Start Media Frame (Interactive)
+```bash
+cd /home/pi/P4Frame
+python3 media_frame.py
+```
+
 ## Monitoring and Status
 
-### Check Service Status
+### Check Running Processes
 ```bash
-# Check video converter service status
-sudo systemctl status video-converter.service
+# Check if video converter is running
+ps aux | grep video_converter
 
-# Check main P4Frame service status
-systemctl --user status p4frame.service
-
-# Check if services are enabled for boot
-sudo systemctl is-enabled video-converter.service
-systemctl --user is-enabled p4frame.service
+# Check all P4Frame processes
+ps aux | grep -E "(media_frame|video_converter)"
 ```
 
 ### View Logs
 ```bash
-# Live service logs
-journalctl -u video-converter.service -f
-journalctl --user -u p4frame.service -f
-
-# Converter logs (if available)
+# Video converter logs
 tail -f /home/pi/P4Frame/logs/video_converter/converter_*.log
 
-# Weekly restart logs
-tail -f /home/pi/logs/p4frame-restart.log
-```
-
-### Check Cron Job
-```bash
-# View installed cron jobs
-crontab -l
-
-# Check cron service status
-sudo systemctl status cron
+# Background process log
+tail -f /home/pi/P4Frame/logs/video_converter.log
 ```
 
 ### Memory and Resource Usage
@@ -109,34 +90,30 @@ sudo systemctl status cron
 # Check memory usage
 free -h
 
-# Check systemd resource usage
-systemctl --user show p4frame.service --property=MemoryCurrent,CPUUsageNSec
-
 # View process information
-ps aux | grep -E "(python|p4frame|vlc)"
+ps aux | grep -E "(python|media_frame|vlc)"
+
+# Check system resources
+top
 ```
 
 ## Maintenance
 
-### Manual Service Control
+### Stop Processes
 ```bash
-# Stop services
-sudo systemctl stop video-converter.service
-systemctl --user stop p4frame.service
+# Stop video converter
+pkill -f video_converter.py
 
-# Restart services
-sudo systemctl restart video-converter.service
-systemctl --user restart p4frame.service
-
-# Disable auto-start (if needed)
-sudo systemctl disable video-converter.service
-systemctl --user disable p4frame.service
+# Stop media frame (or press ESC key)
+pkill -f media_frame.py
 ```
 
-### Manual Weekly Restart
+### Restart Video Converter
 ```bash
-# Run weekly restart script manually
-/home/pi/P4Frame/cron-restart.sh
+# Stop and restart video converter
+pkill -f video_converter.py
+cd /home/pi/P4Frame
+nohup python3 video_converter.py > logs/video_converter.log 2>&1 &
 ```
 
 ## Controls

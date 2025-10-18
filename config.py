@@ -49,7 +49,7 @@ VIDEO_CONVERSION = {
 LOGGING = {
     'enabled': True,
     'log_directory': '/home/pi/P4Frame/logs/video_converter',
-    'log_level': 'DEBUG',
+    'log_level': 'INFO',
     'log_to_console': True,
     'log_to_file': True,
 }
@@ -77,13 +77,11 @@ SYSTEM = {
     'escape_key_exit': True,    # Allow Escape key to exit application
 }
 
-# === Service Settings (for systemd service) ===
-SERVICE = {
+# === User Settings ===
+USER = {
     'user': 'pi',
     'group': 'pi',
     'working_directory': '/home/pi/P4Frame',
-    'restart_on_failure': True,
-    'restart_delay': 10,  # Seconds before restart
 }
 
 # === Development/Debug Settings ===

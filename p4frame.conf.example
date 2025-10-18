@@ -58,12 +58,10 @@
     "escape_key_exit": true
   },
   
-  "SERVICE": {
+  "USER": {
     "user": "pi",
     "group": "pi",
-    "working_directory": "/home/pi/P4Frame",
-    "restart_on_failure": true,
-    "restart_delay": 10
+    "working_directory": "/home/pi/P4Frame"
   },
   
   "DEBUG": {
