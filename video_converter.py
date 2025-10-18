@@ -103,6 +103,7 @@ class VideoConverterService:
             '-bufsize', config.VIDEO_CONVERSION['buffer_size'],
             '-profile:v', config.VIDEO_CONVERSION['profile'],
             '-level', config.VIDEO_CONVERSION['level'],
+            '-r', config.VIDEO_CONVERSION['framerate'],  # Set framerate
             '-c:a', config.VIDEO_CONVERSION['audio_codec'],
             '-b:a', config.VIDEO_CONVERSION['audio_bitrate'],
             '-threads', str(self.cpu_cores),

@@ -10,6 +10,23 @@ from pathlib import Path
 import config
 import gc
 
+# Initialize X11 for threading before any VLC operations
+try:
+    import ctypes
+    import ctypes.util
+    
+    # Load X11 library
+    x11_lib = ctypes.util.find_library('X11')
+    if x11_lib:
+        x11 = ctypes.CDLL(x11_lib)
+        # Initialize X11 threading support
+        x11.XInitThreads()
+        print("X11 threading initialized successfully")
+    else:
+        print("Warning: X11 library not found, threading may have issues")
+except Exception as e:
+    print(f"Warning: Could not initialize X11 threading: {e}")
+
 # Singleton VLC instance to prevent recreation
 _vlc_instance = None
 

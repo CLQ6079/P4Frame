@@ -32,16 +32,17 @@ VIDEO_CONVERSION = {
     'converted_subfolder': 'converted', # Subfolder for converted videos
     'tmp_extension': '.tmp',           # Use .temp instead of .tmp for Windows compatibility
 
-    # FFmpeg settings optimized for Raspberry Pi 4 playback
+    # FFmpeg settings optimized for Raspberry Pi 4 with hardware acceleration
     'codec': 'libx264',                 # Video codec (H.264)
-    'preset': 'medium',                 # Better compression than 'faster'
-    'crf': 28,                          # Higher CRF for lower bitrate (optimized for Pi 4)
-    'max_bitrate': '1M',                # Reduced bitrate for Pi 4 memory bandwidth
-    'buffer_size': '2M',                # Smaller buffer to reduce memory pressure
-    'profile': 'baseline',              # H.264 baseline profile for Pi compatibility
-    'level': '3.1',                     # H.264 level 3.1 for Pi hardware decoder
+    'preset': 'fast',                   # Faster encoding for better performance
+    'crf': 23,                          # Better quality (lower CRF) since GPU can handle it
+    'max_bitrate': '3M',                # Higher bitrate for better quality with hardware decode
+    'buffer_size': '6M',                # Larger buffer for smoother playback
+    'profile': 'main',                  # H.264 main profile for better quality
+    'level': '4.0',                     # H.264 level 4.0 for higher resolution support
     'audio_codec': 'aac',               # Audio codec
-    'audio_bitrate': '96k',             # Reduced audio bitrate
+    'audio_bitrate': '128k',            # Higher audio bitrate for better sound
+    'framerate': '30',                  # Maintain 30fps for smooth playback
     'timeout': 3600,                    # Conversion timeout in seconds (1 hour)
 }
 
@@ -68,7 +69,7 @@ SLIDESHOW = {
 VIDEO_PLAYER = {
     'enabled': True,            # Enable/disable video playback (slideshow only if False)
     'scale_factor': 0.9,        # Use 90% of screen for video display
-    'vlc_options': '--no-xlib', # VLC instance options
+    'vlc_options': '', # VLC instance options
 }
 
 # === System Settings ===
