@@ -379,11 +379,27 @@ class MediaFrame:
     
     def navigate_previous(self):
         """Navigate to previous media item"""
+        print(f"Navigate previous: current_index={self.current_index}, queue_length={len(self.media_queue)}")
+        
+        # Ensure we have a valid media queue
+        if not self.media_queue:
+            print("Warning: Empty media queue, recreating...")
+            self.create_media_queue()
+            if not self.media_queue:
+                print("Error: Still no media available")
+                return
+        
         # Go to previous item
         self.current_index -= 1
         if self.current_index < 0:
             # Wrap to end of queue
             self.current_index = len(self.media_queue) - 1 if self.media_queue else 0
+            print(f"Wrapped to end: current_index={self.current_index}")
+        
+        # Ensure index is still valid after any changes
+        if self.current_index >= len(self.media_queue):
+            self.current_index = len(self.media_queue) - 1 if self.media_queue else 0
+            print(f"Clamped index: current_index={self.current_index}")
         
         # Show the previous item and let auto-playing continue
         self.show_media_at_index_with_auto_advance()
@@ -439,8 +455,17 @@ class MediaFrame:
     
     def show_media_at_index_with_auto_advance(self):
         """Display media item at current index with auto-advance enabled"""
-        if not self.media_queue or self.current_index >= len(self.media_queue):
+        print(f"Show media at index: current_index={self.current_index}, queue_length={len(self.media_queue) if self.media_queue else 0}")
+        
+        if not self.media_queue:
+            print("Warning: No media queue in show_media_at_index_with_auto_advance")
             return
+            
+        if self.current_index >= len(self.media_queue):
+            print(f"Warning: Index {self.current_index} >= queue length {len(self.media_queue)}")
+            self.current_index = 0  # Reset to beginning
+            if not self.media_queue:
+                return
         
         # Get current media item
         media_type, media_item = self.media_queue[self.current_index]
