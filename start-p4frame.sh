@@ -17,8 +17,8 @@ else
     # Create logs directory if it doesn't exist
     mkdir -p logs
     
-    # Start video converter in background
-    nohup python3 video_converter.py > logs/video_converter.log 2>&1 &
+    # Start video converter in background with config
+    nohup python3 video_converter.py --config p4frame_raspi4.conf > logs/video_converter.log 2>&1 &
     
     # Wait a moment and check if it started
     sleep 2
@@ -36,8 +36,8 @@ echo "Starting media frame..."
 echo "Press ESC to exit when running"
 echo ""
 
-# Start media frame interactively
-python3 media_frame.py
+# Start media frame interactively with config
+python3 media_frame.py --config p4frame_raspi4.conf
 
 echo ""
 echo "Media frame stopped."
