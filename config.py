@@ -57,6 +57,10 @@ LOGGING = {
 
 # === Slideshow Settings (for standalone slideshow mode) ===
 SLIDESHOW = {
+    # SLIDESHOW['batch_size'] (default: 10)
+    # - Higher value: Fewer photo groups = videos play less frequently
+    # - Lower value: More photo groups = videos play more frequently
+    # - Example: batch_size: 5 = videos every 5 photos instead of 10
     'batch_size': 10,           # Number of images to process per batch (affects startup time)
     'border_size': 30,          # Border size between images in pixels
     'border_height': 50,        # Fixed border height

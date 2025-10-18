@@ -259,7 +259,8 @@ class MediaFrame:
         self.check_memory_cleanup()
         
         # Schedule next media
-        self._scheduled_after = self.root.after(self.photo_delay, self.show_next_media)
+        delay = self.photo_delay if hasattr(self, 'photo_delay') else config.MEDIA['photo_delay']
+        self._scheduled_after = self.root.after(delay, self.show_next_media)
     
     def show_video(self, video_path):
         """Play a video"""
@@ -501,7 +502,8 @@ class MediaFrame:
             
             # Schedule next media with auto-advance
             self.current_index += 1
-            self._scheduled_after = self.root.after(self.photo_delay, self.show_next_media)
+            delay = self.photo_delay if hasattr(self, 'photo_delay') else config.MEDIA['photo_delay']
+            self._scheduled_after = self.root.after(delay, self.show_next_media)
             
         elif media_type == 'video':
             # Play video with auto-advance
