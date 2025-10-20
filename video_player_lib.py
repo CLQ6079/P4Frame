@@ -197,6 +197,9 @@ class VideoPlayer:
             
             self.video_frame.configure(width=frame_width, height=frame_height)
             
+            # Show video frame
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            
             # Start playing
             self.player.play()
         
