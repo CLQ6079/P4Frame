@@ -158,21 +158,18 @@ class MediaFrame:
             gc.collect()
     
     def create_media_queue(self):
-        """Create alternating queue of photos and videos"""
+        """Create queue: play all photos in batch, then one video, repeat"""
         self.media_queue = []
         
-        # Use current combined images and videos
-        photo_groups = list(enumerate(self.combined_images))
-        videos = list(enumerate(self.video_files))
+        # Add all photos from current batch
+        for photo_group in self.combined_images:
+            self.media_queue.append(('photo', photo_group))
         
-        # Alternate between photo groups and videos
-        max_len = max(len(photo_groups), len(videos))
-        
-        for i in range(max_len):
-            if i < len(photo_groups):
-                self.media_queue.append(('photo', photo_groups[i][1]))
-            if i < len(videos):
-                self.media_queue.append(('video', videos[i][1]))
+        # Add one video after the photo batch (if videos available)
+        if self.video_files:
+            # Use modulo to cycle through videos
+            video_index = self.current_batch_index % len(self.video_files)
+            self.media_queue.append(('video', self.video_files[video_index]))
     
     def show_next_media(self):
         """Display next media item in queue"""
