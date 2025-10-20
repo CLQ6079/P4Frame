@@ -252,6 +252,9 @@ class MediaFrame:
         self.current_photo = photo  # Track for cleanup
         self.photo_label.pack(fill=tk.BOTH, expand=True)
         
+        # Preload next video during photo display
+        self.preload_next_video()
+        
         # Memory management
         self.check_memory_cleanup()
         
@@ -349,6 +352,33 @@ class MediaFrame:
         
         # Check again based on config
         self.root.after(config.MEDIA['refresh_interval'], self.refresh_media)
+    
+    def preload_next_video(self):
+        """Preload the next video that will be played"""
+        if not self.video_player or not self.video_files:
+            return
+            
+        # Find next video in the sequence
+        next_video_path = None
+        
+        # Look ahead in current queue for next video
+        for i in range(self.current_index, len(self.media_queue)):
+            media_type, media_item = self.media_queue[i]
+            if media_type == 'video':
+                next_video_path = media_item
+                break
+        
+        # If no video found in current queue, get video from next batch
+        if not next_video_path and self.video_files:
+            next_batch_index = self.current_batch_index + 1
+            if next_batch_index * self.batch_size >= len(self.all_image_files):
+                next_batch_index = 0  # Wrap around
+            video_index = next_batch_index % len(self.video_files)
+            next_video_path = self.video_files[video_index]
+        
+        # Preload the video
+        if next_video_path:
+            self.video_player.preload_video(next_video_path)
     
     def on_volume_up(self, event=None):
         """Handle volume up key press - go to next media"""
