@@ -64,14 +64,17 @@ class VideoPlayer:
         
     def play_video(self, video_path, on_complete=None):
         """Play a video file with proper scaling"""
+        print(f"[VideoPlayer] play_video called: {os.path.basename(video_path)}")
+
         if not os.path.exists(video_path):
-            print(f"Video file not found: {video_path}")
+            print(f"[VideoPlayer] ERROR: Video file not found: {video_path}")
             if on_complete:
                 on_complete()
             return
-            
+
         self.current_video = video_path
         self.on_complete_callback = on_complete
+        print(f"[VideoPlayer] Video path exists, starting playback...")
         
         # Create media
         media = self.instance.media_new(video_path)
@@ -101,15 +104,21 @@ class VideoPlayer:
         
         # Resize video frame
         self.video_frame.configure(width=frame_width, height=frame_height)
-        
+        print(f"[VideoPlayer] Video frame resized to {frame_width}x{frame_height}")
+
         # Start playing
         self.player.play()
+        print(f"[VideoPlayer] player.play() called - video should be playing now")
         
     def on_video_ended(self, event):
         """Called when video playback ends"""
+        print(f"[VideoPlayer] on_video_ended event fired for: {os.path.basename(self.current_video) if self.current_video else 'unknown'}")
         if self.on_complete_callback:
             # Schedule callback in main thread
+            print(f"[VideoPlayer] Scheduling on_complete callback")
             self.root.after(100, self.on_complete_callback)
+        else:
+            print(f"[VideoPlayer] No on_complete callback set")
     
     def stop(self):
         """Stop current video playback"""

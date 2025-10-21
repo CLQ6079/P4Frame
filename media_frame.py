@@ -205,19 +205,23 @@ class MediaFrame:
         
         # Get current media item
         media_type, media_item = self.media_queue[self.current_index]
+        logging.info(f"show_next_media: index={self.current_index}, type={media_type}, queue_len={len(self.media_queue)}")
 
         if media_type == 'photo':
             self.show_photo(media_item)
         elif media_type == 'video' and config.VIDEO_PLAYER.get('enabled', True):
+            logging.info(f"Calling show_video for: {os.path.basename(media_item)}")
             self.show_video(media_item)
         else:
             # Skip video if player disabled, move to next item
+            logging.warning(f"Skipping video - player enabled: {config.VIDEO_PLAYER.get('enabled', True)}")
             self.current_index += 1
             self._scheduled_after = self.root.after(100, self.show_next_media)  # Quick transition to next
             return
 
         # Move to next item (for both photos and videos)
         self.current_index += 1
+        logging.debug(f"Incremented index to {self.current_index}")
     
     def preload_next_batch(self):
         """Preload next batch in background"""
