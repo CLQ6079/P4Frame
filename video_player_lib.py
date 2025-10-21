@@ -44,13 +44,14 @@ class VideoPlayer:
         self.screen_height = screen_height
         self.current_video = None
         self.on_complete_callback = None
-        
+
         # Video preloading - load, buffer, and pause ready videos
         self.preloaded_media = None
         self.preloaded_path = None
         self.preload_thread = None
         self.preloaded_ready = False  # True when video is loaded, buffered, and paused
         self.preloaded_frame_size = None  # Store calculated frame dimensions
+        self.preload_lock = threading.Lock()  # Thread safety for preload state
         
         # Create main frame with white background
         self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
@@ -112,22 +113,34 @@ class VideoPlayer:
                 
                 # Pause the video (keeps it buffered and ready)
                 self.player.pause()
-                
+
+                # Verify player is actually paused
+                time.sleep(0.1)
+                player_state = self.player.get_state()
+                if player_state != vlc.State.Paused:
+                    if config.DEBUG.get('verbose_logging', False):
+                        print(f"Warning: Player not in paused state after preload (state: {player_state})")
+
                 # Hide the video frame until needed
                 self.main_frame.pack_forget()
-                
-                # Store preload info
-                self.preloaded_media = media
-                self.preloaded_path = video_path
-                self.preloaded_ready = True
-                self.preloaded_frame_size = (frame_width, frame_height)
+
+                # Store preload info with thread safety
+                with self.preload_lock:
+                    self.preloaded_media = media
+                    self.preloaded_path = video_path
+                    self.preloaded_ready = True
+                    self.preloaded_frame_size = (frame_width, frame_height)
                 
                 if config.DEBUG.get('verbose_logging', False):
                     print(f"Preloaded and buffered video: {os.path.basename(video_path)} ({frame_width}x{frame_height})")
                     
             except Exception as e:
                 print(f"Error preloading video {video_path}: {e}")
-                self.preloaded_ready = False
+                with self.preload_lock:
+                    self.preloaded_ready = False
+                    self.preloaded_media = None
+                    self.preloaded_path = None
+                    self.preloaded_frame_size = None
                 
         # Run preloading in background thread
         self.preload_thread = threading.Thread(target=_preload, daemon=True)
@@ -143,25 +156,30 @@ class VideoPlayer:
             
         self.current_video = video_path
         self.on_complete_callback = on_complete
-        
-        # Check if video is preloaded and ready
-        if (self.preloaded_path == video_path and self.preloaded_ready and 
-            self.preloaded_media and self.preloaded_frame_size):
-            
-            # Video is preloaded, buffered, and paused - just show and unpause!
-            frame_width, frame_height = self.preloaded_frame_size
-            
+
+        # Check if video is preloaded and ready (with thread safety)
+        with self.preload_lock:
+            is_preloaded = (self.preloaded_path == video_path and self.preloaded_ready and
+                           self.preloaded_media and self.preloaded_frame_size)
+            if is_preloaded:
+                frame_width, frame_height = self.preloaded_frame_size
+
+        if is_preloaded:
+            # Video is preloaded, buffered, and paused - just show and resume!
+
             # Show video frame (already sized correctly)
             self.main_frame.pack(fill=tk.BOTH, expand=True)
-            
-            # Resume playback (video is already loaded and buffered)
-            self.player.pause()  # Toggle pause (unpause)
-            
-            # Clear preload state
-            self.preloaded_media = None
-            self.preloaded_path = None
-            self.preloaded_ready = False
-            self.preloaded_frame_size = None
+
+            # Resume playback - use play() instead of pause() to explicitly start
+            # (pause() toggles state, which would pause an already-paused video)
+            self.player.play()
+
+            # Clear preload state with thread safety
+            with self.preload_lock:
+                self.preloaded_media = None
+                self.preloaded_path = None
+                self.preloaded_ready = False
+                self.preloaded_frame_size = None
             
             if config.DEBUG.get('verbose_logging', False):
                 print(f"Instant playback of preloaded video: {os.path.basename(video_path)}")
@@ -241,12 +259,13 @@ class VideoPlayer:
     
     def cleanup(self):
         """Clean up resources"""
-        # Clean up preloaded media
-        if self.preloaded_media:
-            self.preloaded_media = None
-        self.preloaded_path = None
-        self.preloaded_ready = False
-        self.preloaded_frame_size = None
+        # Clean up preloaded media with thread safety
+        with self.preload_lock:
+            if self.preloaded_media:
+                self.preloaded_media = None
+            self.preloaded_path = None
+            self.preloaded_ready = False
+            self.preloaded_frame_size = None
         
         if self.player:
             self.player.stop()
