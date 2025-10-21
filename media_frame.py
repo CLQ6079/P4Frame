@@ -372,6 +372,11 @@ class MediaFrame:
     
     def navigate_next(self):
         """Navigate to next media item"""
+        # Cancel any scheduled auto-advance timer
+        if self._scheduled_after is not None:
+            self.root.after_cancel(self._scheduled_after)
+            self._scheduled_after = None
+
         # Advance to next item and let auto-playing continue
         self.current_index += 1
         self.show_next_media()
@@ -379,7 +384,12 @@ class MediaFrame:
     def navigate_previous(self):
         """Navigate to previous media item"""
         logging.debug(f"Navigate previous: current_index={self.current_index}, queue_length={len(self.media_queue)}")
-        
+
+        # Cancel any scheduled auto-advance timer
+        if self._scheduled_after is not None:
+            self.root.after_cancel(self._scheduled_after)
+            self._scheduled_after = None
+
         # Ensure we have a valid media queue
         if not self.media_queue:
             logging.warning("Warning: Empty media queue, recreating...")
@@ -387,7 +397,7 @@ class MediaFrame:
             if not self.media_queue:
                 logging.error("Error: Still no media available")
                 return
-        
+
         # Go to previous item
         self.current_index -= 1
         if self.current_index < 0:
