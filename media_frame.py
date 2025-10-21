@@ -391,8 +391,7 @@ class MediaFrame:
             self.root.after_cancel(self._scheduled_after)
             self._scheduled_after = None
 
-        # Advance to next item and let auto-playing continue
-        self.current_index += 1
+        # show_next_media will handle displaying and incrementing
         self.show_next_media()
     
     def navigate_previous(self):
@@ -410,10 +409,11 @@ class MediaFrame:
                 logging.error("Error: Still no media available")
                 return
 
-        # Go to previous item (wrap around if needed)
+        # Decrement index (show_next_media will increment, so go back by 1)
+        # This results in showing the previous item
         self.current_index = (self.current_index - 1) % len(self.media_queue)
 
-        # Show the previous item and let auto-playing continue
+        # show_next_media will handle displaying and incrementing
         self.show_next_media()
     
 
