@@ -160,16 +160,20 @@ class MediaFrame:
     def create_media_queue(self):
         """Create queue: play all photos in batch, then one video, repeat"""
         self.media_queue = []
-        
+
         # Add all photos from current batch
         for photo_group in self.combined_images:
             self.media_queue.append(('photo', photo_group))
-        
+
         # Add one video after the photo batch (if videos available)
         if self.video_files:
             # Use modulo to cycle through videos
             video_index = self.current_batch_index % len(self.video_files)
-            self.media_queue.append(('video', self.video_files[video_index]))
+            video_path = self.video_files[video_index]
+            self.media_queue.append(('video', video_path))
+            logging.info(f"Added video to queue: {os.path.basename(video_path)} (batch {self.current_batch_index + 1})")
+        else:
+            logging.warning("No video files found - playing photos only")
     
     def show_next_media(self):
         """Display next media item in queue"""
@@ -211,8 +215,8 @@ class MediaFrame:
             self.current_index += 1
             self._scheduled_after = self.root.after(100, self.show_next_media)  # Quick transition to next
             return
-        
-        # Move to next item
+
+        # Move to next item (for both photos and videos)
         self.current_index += 1
     
     def preload_next_batch(self):
@@ -261,14 +265,20 @@ class MediaFrame:
     
     def show_video(self, video_path):
         """Play a video"""
+        logging.info(f"Attempting to play video: {video_path}")
+
         # Hide photo label
         self.photo_label.pack_forget()
-        
+
         # Show video player
-        self.video_player.main_frame.pack(fill=tk.BOTH, expand=True)
-        
-        # Play video with callback for next media
-        self.video_player.play_video(video_path, on_complete=self.show_next_media)
+        if self.video_player:
+            self.video_player.main_frame.pack(fill=tk.BOTH, expand=True)
+
+            # Play video with callback for next media
+            self.video_player.play_video(video_path, on_complete=self.show_next_media)
+            logging.info(f"Video player started for: {os.path.basename(video_path)}")
+        else:
+            logging.error("Video player is None - cannot play video!")
     
     def quit(self):
         """Clean shutdown"""
