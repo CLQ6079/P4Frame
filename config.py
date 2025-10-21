@@ -74,7 +74,7 @@ SLIDESHOW = {
 VIDEO_PLAYER = {
     'enabled': True,            # Enable/disable video playback (slideshow only if False)
     'scale_factor': 0.9,        # Use 90% of screen for video display
-    'vlc_options': '', # VLC instance options
+    "vlc_options": "--no-video-title-show --quiet --no-audio --avcodec-hw=any --vout=x11 --verbose=0 --intf=dummy --no-stats --no-osd"
 }
 
 # === System Settings ===
