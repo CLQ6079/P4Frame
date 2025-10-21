@@ -2,11 +2,10 @@
 
 import os
 import math
-from PIL import ExifTags, Image, ImageTk, ImageOps, ImageDraw, ImageFont
+from PIL import ExifTags, Image, ImageTk, ImageOps
 import tkinter as tk
 import config
 import gc
-from datetime import datetime
 
 class Slideshow:
     def __init__(self, root, combined_images, delay, screen_width, screen_height):
@@ -72,29 +71,6 @@ def get_image_files(directory):
     all_files = [os.path.join(directory, f) for f in os.listdir(directory) if (f.lower().endswith(supported_formats) and not f.lower().startswith("."))]
     return all_files
 
-def get_photo_timestamp(image):
-    """Extract timestamp from photo EXIF metadata"""
-    try:
-        exif = image._getexif()
-        if exif is not None:
-            # Try different timestamp fields in order of preference
-            timestamp_tags = ['DateTime', 'DateTimeOriginal', 'DateTimeDigitized']
-            
-            for tag_name in timestamp_tags:
-                for tag_id in ExifTags.TAGS.keys():
-                    if ExifTags.TAGS[tag_id] == tag_name:
-                        timestamp_str = exif.get(tag_id)
-                        if timestamp_str:
-                            try:
-                                # Parse EXIF datetime format: "YYYY:MM:DD HH:MM:SS"
-                                dt = datetime.strptime(timestamp_str, "%Y:%m:%d %H:%M:%S")
-                                return dt.strftime("%Y-%m-%d %H:%M:%S")
-                            except ValueError:
-                                continue
-    except (AttributeError, KeyError, TypeError):
-        pass
-    return None
-
 def correct_orientation(image):
     try:
         for orientation in ExifTags.TAGS.keys():
@@ -113,58 +89,6 @@ def correct_orientation(image):
         pass
     return image
 
-def add_timestamp_overlay(image, timestamp):
-    """Add timestamp overlay to bottom-right corner of image"""
-    try:
-        # Create a copy to avoid modifying original
-        img_with_timestamp = image.copy()
-        draw = ImageDraw.Draw(img_with_timestamp)
-        
-        # Try to use a system font, fallback to default
-        try:
-            # Adjust font size based on image height
-            font_size = max(20, min(40, image.height // 25))
-            font = ImageFont.truetype("/System/Library/Fonts/Arial.ttf", font_size)
-        except (IOError, OSError):
-            try:
-                font = ImageFont.truetype("arial.ttf", 24)
-            except (IOError, OSError):
-                font = ImageFont.load_default()
-        
-        # Get text dimensions (compatible with older PIL versions)
-        try:
-            # Try new method first
-            bbox = draw.textbbox((0, 0), timestamp, font=font)
-            text_width = bbox[2] - bbox[0]
-            text_height = bbox[3] - bbox[1]
-        except AttributeError:
-            # Fallback for older PIL versions
-            text_width, text_height = draw.textsize(timestamp, font=font)
-        
-        # Position in bottom-right corner with padding
-        padding = 10
-        x = image.width - text_width - padding
-        y = image.height - text_height - padding
-        
-        # Add semi-transparent background for better readability
-        bg_padding = 5
-        bg_coords = [
-            x - bg_padding,
-            y - bg_padding,
-            x + text_width + bg_padding,
-            y + text_height + bg_padding
-        ]
-        draw.rectangle(bg_coords, fill=(255, 255, 255, 180))
-        
-        # Draw black text
-        draw.text((x, y), timestamp, fill=(0, 0, 0), font=font)
-        
-        return img_with_timestamp
-    except Exception as e:
-        # If overlay fails, return original image
-        print(f"Warning: Could not add timestamp overlay: {e}")
-        return image
-
 def create_combined_images(image_files, screen_width, screen_height, border_size=None):
     if border_size is None:
         border_size = config.SLIDESHOW['border_size']
@@ -177,10 +101,6 @@ def create_combined_images(image_files, screen_width, screen_height, border_size
     
     for image_file in image_files:
         img = Image.open(image_file)
-        
-        # Extract timestamp before any processing
-        timestamp = get_photo_timestamp(img)
-        
         img = correct_orientation(img)
         img_width, img_height = img.size
         
@@ -188,10 +108,6 @@ def create_combined_images(image_files, screen_width, screen_height, border_size
         scaled_height = screen_height - 2 * border_height
         scaled_width = int(img_width * scaled_height / img_height)
         scaled_img = img.resize((scaled_width, scaled_height), Image.LANCZOS)
-        
-        # Add timestamp overlay if available and enabled
-        if timestamp and config.SLIDESHOW.get('show_timestamps', True):
-            scaled_img = add_timestamp_overlay(scaled_img, timestamp)
         
         if current_width + scaled_width + (len(current_image_row) * border_size) <= screen_width:
             current_image_row.append(scaled_img)

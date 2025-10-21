@@ -44,14 +44,6 @@ class VideoPlayer:
         self.screen_height = screen_height
         self.current_video = None
         self.on_complete_callback = None
-
-        # Video preloading - load, buffer, and pause ready videos
-        self.preloaded_media = None
-        self.preloaded_path = None
-        self.preload_thread = None
-        self.preloaded_ready = False  # True when video is loaded, buffered, and paused
-        self.preloaded_frame_size = None  # Store calculated frame dimensions
-        self.preload_lock = threading.Lock()  # Thread safety for preload state
         
         # Create main frame with white background
         self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
@@ -70,84 +62,8 @@ class VideoPlayer:
         self.event_manager = self.player.event_manager()
         self.event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.on_video_ended)
         
-    def preload_video(self, video_path):
-        """Preload, buffer, and pause video for instant playback"""
-        if not os.path.exists(video_path):
-            return
-            
-        def _preload():
-            try:
-                # Create media
-                media = self.instance.media_new(video_path)
-                media.parse()
-                time.sleep(0.1)
-                
-                # Set media to player
-                self.player.set_media(media)
-                
-                # Set video output to our frame
-                if os.name == 'nt':  # Windows
-                    self.player.set_hwnd(self.video_frame.winfo_id())
-                else:  # Linux/Mac
-                    self.player.set_xwindow(self.video_frame.winfo_id())
-                
-                # Start playing to trigger buffering and dimension detection
-                self.player.play()
-                time.sleep(0.3)  # Give VLC time to start and buffer
-                
-                # Get video dimensions after playing starts
-                video_width = self.player.video_get_width() or 1920
-                video_height = self.player.video_get_height() or 1080
-                
-                # Calculate scaling
-                scale_factor = config.VIDEO_PLAYER['scale_factor']
-                scale_x = self.screen_width * scale_factor / video_width
-                scale_y = self.screen_height * scale_factor / video_height
-                scale = min(scale_x, scale_y)
-                
-                frame_width = int(video_width * scale)
-                frame_height = int(video_height * scale)
-                
-                # Resize video frame while playing
-                self.video_frame.configure(width=frame_width, height=frame_height)
-                
-                # Pause the video (keeps it buffered and ready)
-                self.player.pause()
-
-                # Verify player is actually paused
-                time.sleep(0.1)
-                player_state = self.player.get_state()
-                if player_state != vlc.State.Paused:
-                    if config.DEBUG.get('verbose_logging', False):
-                        print(f"Warning: Player not in paused state after preload (state: {player_state})")
-
-                # Hide the video frame until needed
-                self.main_frame.pack_forget()
-
-                # Store preload info with thread safety
-                with self.preload_lock:
-                    self.preloaded_media = media
-                    self.preloaded_path = video_path
-                    self.preloaded_ready = True
-                    self.preloaded_frame_size = (frame_width, frame_height)
-                
-                if config.DEBUG.get('verbose_logging', False):
-                    print(f"Preloaded and buffered video: {os.path.basename(video_path)} ({frame_width}x{frame_height})")
-                    
-            except Exception as e:
-                print(f"Error preloading video {video_path}: {e}")
-                with self.preload_lock:
-                    self.preloaded_ready = False
-                    self.preloaded_media = None
-                    self.preloaded_path = None
-                    self.preloaded_frame_size = None
-                
-        # Run preloading in background thread
-        self.preload_thread = threading.Thread(target=_preload, daemon=True)
-        self.preload_thread.start()
-    
     def play_video(self, video_path, on_complete=None):
-        """Play a video file instantly if preloaded, or normally if not"""
+        """Play a video file with proper scaling"""
         if not os.path.exists(video_path):
             print(f"Video file not found: {video_path}")
             if on_complete:
@@ -156,70 +72,38 @@ class VideoPlayer:
             
         self.current_video = video_path
         self.on_complete_callback = on_complete
-
-        # Check if video is preloaded and ready (with thread safety)
-        with self.preload_lock:
-            is_preloaded = (self.preloaded_path == video_path and self.preloaded_ready and
-                           self.preloaded_media and self.preloaded_frame_size)
-            if is_preloaded:
-                frame_width, frame_height = self.preloaded_frame_size
-
-        if is_preloaded:
-            # Video is preloaded, buffered, and paused - just show and resume!
-
-            # Show video frame (already sized correctly)
-            self.main_frame.pack(fill=tk.BOTH, expand=True)
-
-            # Resume playback - use play() instead of pause() to explicitly start
-            # (pause() toggles state, which would pause an already-paused video)
-            self.player.play()
-
-            # Clear preload state with thread safety
-            with self.preload_lock:
-                self.preloaded_media = None
-                self.preloaded_path = None
-                self.preloaded_ready = False
-                self.preloaded_frame_size = None
-            
-            if config.DEBUG.get('verbose_logging', False):
-                print(f"Instant playback of preloaded video: {os.path.basename(video_path)}")
-                
-        else:
-            # Fallback to normal loading if preload not available
-            if config.DEBUG.get('verbose_logging', False):
-                print(f"Normal loading for video: {os.path.basename(video_path)}")
-                
-            media = self.instance.media_new(video_path)
-            media.parse()
-            time.sleep(0.1)
-            
-            self.player.set_media(media)
-            
-            # Set video output
-            if os.name == 'nt':  # Windows
-                self.player.set_hwnd(self.video_frame.winfo_id())
-            else:  # Linux/Mac
-                self.player.set_xwindow(self.video_frame.winfo_id())
-            
-            # Get dimensions and scale
-            video_width = self.player.video_get_width() or 1920
-            video_height = self.player.video_get_height() or 1080
-            
-            scale_factor = config.VIDEO_PLAYER['scale_factor']
-            scale_x = self.screen_width * scale_factor / video_width
-            scale_y = self.screen_height * scale_factor / video_height
-            scale = min(scale_x, scale_y)
-            
-            frame_width = int(video_width * scale)
-            frame_height = int(video_height * scale)
-            
-            self.video_frame.configure(width=frame_width, height=frame_height)
-            
-            # Show video frame
-            self.main_frame.pack(fill=tk.BOTH, expand=True)
-            
-            # Start playing
-            self.player.play()
+        
+        # Create media
+        media = self.instance.media_new(video_path)
+        self.player.set_media(media)
+        
+        # Set the video output to our frame
+        if os.name == 'nt':  # Windows
+            self.player.set_hwnd(self.video_frame.winfo_id())
+        else:  # Linux/Mac
+            self.player.set_xwindow(self.video_frame.winfo_id())
+        
+        # Get video dimensions
+        media.parse()
+        time.sleep(0.1)  # Give VLC time to parse
+        
+        video_width = self.player.video_get_width() or 1920
+        video_height = self.player.video_get_height() or 1080
+        
+        # Calculate scaling to fit screen while maintaining aspect ratio
+        scale_factor = config.VIDEO_PLAYER['scale_factor']
+        scale_x = self.screen_width * scale_factor / video_width
+        scale_y = self.screen_height * scale_factor / video_height
+        scale = min(scale_x, scale_y)
+        
+        frame_width = int(video_width * scale)
+        frame_height = int(video_height * scale)
+        
+        # Resize video frame
+        self.video_frame.configure(width=frame_width, height=frame_height)
+        
+        # Start playing
+        self.player.play()
         
     def on_video_ended(self, event):
         """Called when video playback ends"""
@@ -259,18 +143,11 @@ class VideoPlayer:
     
     def cleanup(self):
         """Clean up resources"""
-        # Clean up preloaded media with thread safety
-        with self.preload_lock:
-            if self.preloaded_media:
-                self.preloaded_media = None
-            self.preloaded_path = None
-            self.preloaded_ready = False
-            self.preloaded_frame_size = None
-        
         if self.player:
             self.player.stop()
             self.player.release()
             self.player = None
+        
         
         # Note: Don't release the singleton VLC instance
         # It will be reused for the lifetime of the application
