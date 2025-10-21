@@ -34,7 +34,16 @@ def get_vlc_instance():
     """Get or create singleton VLC instance"""
     global _vlc_instance
     if _vlc_instance is None:
-        _vlc_instance = vlc.Instance(config.VIDEO_PLAYER['vlc_options'])
+        vlc_args = config.VIDEO_PLAYER['vlc_options']
+        print(f"[VLC] Creating VLC instance with options: '{vlc_args}'")
+
+        # If empty, use minimal options for Raspberry Pi
+        if not vlc_args:
+            vlc_args = '--no-audio --verbose=2'
+            print(f"[VLC] Using default options: '{vlc_args}'")
+
+        _vlc_instance = vlc.Instance(vlc_args)
+        print(f"[VLC] VLC instance created: {_vlc_instance}")
     return _vlc_instance
 
 class VideoPlayer:
@@ -48,24 +57,30 @@ class VideoPlayer:
         # Create main frame with white background (initially hidden)
         self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
         self.main_frame.pack_propagate(False)
-        # Don't pack initially - will be shown when video plays
-        print(f"[VideoPlayer] Initialized - frame created but hidden")
+        print(f"[VideoPlayer] Main frame created: {screen_width}x{screen_height}")
 
-        # Create video frame (centered)
-        self.video_frame = tk.Frame(self.main_frame, bg='white')
-        self.video_frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-        
+        # Create video frame - use full screen instead of centered
+        self.video_frame = tk.Frame(self.main_frame, bg='black')
+        self.video_frame.pack(fill=tk.BOTH, expand=True)
+        print(f"[VideoPlayer] Video frame created and packed")
+
         # Use singleton VLC instance
         self.instance = get_vlc_instance()
+        print(f"[VideoPlayer] Got VLC instance")
+
         self.player = self.instance.media_player_new()
-        
+        print(f"[VideoPlayer] Created media player: {self.player}")
+
         # Event manager for video end detection
         self.event_manager = self.player.event_manager()
         self.event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.on_video_ended)
+        print(f"[VideoPlayer] Event manager attached")
+        print(f"[VideoPlayer] ========== VideoPlayer initialization complete ==========")
         
     def play_video(self, video_path, on_complete=None):
-        """Play a video file with proper scaling"""
-        print(f"[VideoPlayer] play_video called: {os.path.basename(video_path)}")
+        """Play a video file - simplified version"""
+        print(f"[VideoPlayer] ==================== PLAY VIDEO START ====================")
+        print(f"[VideoPlayer] Video: {os.path.basename(video_path)}")
 
         if not os.path.exists(video_path):
             print(f"[VideoPlayer] ERROR: Video file not found: {video_path}")
@@ -75,68 +90,41 @@ class VideoPlayer:
 
         self.current_video = video_path
         self.on_complete_callback = on_complete
-        print(f"[VideoPlayer] Video path exists, starting playback...")
 
-        # Ensure the video frame is realized and has a valid window ID
+        # Stop any currently playing video
+        if self.player.is_playing():
+            print(f"[VideoPlayer] Stopping current video")
+            self.player.stop()
+            time.sleep(0.1)
+
+        # Make sure frame is visible and get window ID
         self.video_frame.update_idletasks()
         window_id = self.video_frame.winfo_id()
         print(f"[VideoPlayer] Window ID: {window_id}")
 
-        # Create media
+        # Create and set media
         media = self.instance.media_new(video_path)
         self.player.set_media(media)
+        print(f"[VideoPlayer] Media set")
 
-        # Set the video output to our frame
+        # Set video output window
         if os.name == 'nt':  # Windows
             self.player.set_hwnd(window_id)
-            print(f"[VideoPlayer] Set Windows HWND: {window_id}")
-        else:  # Linux/Mac
+        else:  # Linux/Mac (Raspberry Pi)
             self.player.set_xwindow(window_id)
-            print(f"[VideoPlayer] Set X11 window: {window_id}")
-        
-        # Get video dimensions
-        media.parse()
-        time.sleep(0.1)  # Give VLC time to parse
+        print(f"[VideoPlayer] Video output window set")
 
-        video_width = self.player.video_get_width()
-        video_height = self.player.video_get_height()
+        # Just play - no scaling, no resizing, keep it simple
+        print(f"[VideoPlayer] Starting playback...")
+        result = self.player.play()
+        print(f"[VideoPlayer] play() returned: {result} (0 = success, -1 = error)")
 
-        # If dimensions are not available, start playing to get them
-        if not video_width or not video_height:
-            print(f"[VideoPlayer] Dimensions not available after parse, starting playback...")
-            self.player.play()
-            time.sleep(0.3)  # Give VLC time to start
-            video_width = self.player.video_get_width() or 1920
-            video_height = self.player.video_get_height() or 1080
-            print(f"[VideoPlayer] Got dimensions after play: {video_width}x{video_height}")
-        else:
-            print(f"[VideoPlayer] Got dimensions from parse: {video_width}x{video_height}")
-        
-        # Calculate scaling to fit screen while maintaining aspect ratio
-        scale_factor = config.VIDEO_PLAYER['scale_factor']
-        scale_x = self.screen_width * scale_factor / video_width
-        scale_y = self.screen_height * scale_factor / video_height
-        scale = min(scale_x, scale_y)
-        
-        frame_width = int(video_width * scale)
-        frame_height = int(video_height * scale)
-        
-        # Resize video frame
-        self.video_frame.configure(width=frame_width, height=frame_height)
-        print(f"[VideoPlayer] Video frame resized to {frame_width}x{frame_height}")
-
-        # Start playing (if not already playing from dimension detection)
-        player_state = self.player.get_state()
-        print(f"[VideoPlayer] Current player state: {player_state}")
-
-        if player_state != vlc.State.Playing:
-            self.player.play()
-            print(f"[VideoPlayer] player.play() called - video should start playing")
-        else:
-            print(f"[VideoPlayer] Video already playing from dimension detection")
-
-        # Give VLC a moment to start rendering
-        time.sleep(0.1)
+        # Wait a bit and check state
+        time.sleep(0.5)
+        state = self.player.get_state()
+        is_playing = self.player.is_playing()
+        print(f"[VideoPlayer] After 0.5s - State: {state}, is_playing: {is_playing}")
+        print(f"[VideoPlayer] ==================== PLAY VIDEO END ======================")
         
     def on_video_ended(self, event):
         """Called when video playback ends"""
