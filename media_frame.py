@@ -117,31 +117,30 @@ class MediaFrame:
         """Process next batch of images"""
         start_idx = self.current_batch_index * self.batch_size
         end_idx = start_idx + self.batch_size
-        
+
         # Get current batch of image files
         batch_files = self.all_image_files[start_idx:end_idx]
-        
+
         if batch_files:
             if config.SLIDESHOW.get('show_progress', True) or config.DEBUG.get('verbose_logging', False):
                 total_batches = (len(self.all_image_files) + self.batch_size - 1) // self.batch_size
                 logging.info(f"Loading batch {self.current_batch_index + 1}/{total_batches}: {len(batch_files)} images...")
-            
-            # Create combined images for this batch only
-            batch_combined = create_combined_images(
+
+            # Clean up old combined images before creating new batch
+            for img in self.combined_images:
+                if img and hasattr(img, 'close'):
+                    img.close()
+
+            # Replace combined_images with new batch (don't extend!)
+            self.combined_images = create_combined_images(
                 batch_files,
                 self.screen_width,
                 self.screen_height
             )
-            
-            # Add to our collection
-            self.combined_images.extend(batch_combined)
-            
-            # Clean up old batches if cache is full
-            self.manage_batch_cache()
-            
+
             if config.SLIDESHOW.get('show_progress', True):
-                logging.info(f"Batch {self.current_batch_index + 1} ready ({len(batch_combined)} slides created)")
-        
+                logging.info(f"Batch {self.current_batch_index + 1} ready ({len(self.combined_images)} slides created)")
+
         return len(batch_files) > 0
     
     def manage_batch_cache(self):

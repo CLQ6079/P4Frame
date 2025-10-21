@@ -76,23 +76,41 @@ class VideoPlayer:
         self.current_video = video_path
         self.on_complete_callback = on_complete
         print(f"[VideoPlayer] Video path exists, starting playback...")
-        
+
+        # Ensure the video frame is realized and has a valid window ID
+        self.video_frame.update_idletasks()
+        window_id = self.video_frame.winfo_id()
+        print(f"[VideoPlayer] Window ID: {window_id}")
+
         # Create media
         media = self.instance.media_new(video_path)
         self.player.set_media(media)
-        
+
         # Set the video output to our frame
         if os.name == 'nt':  # Windows
-            self.player.set_hwnd(self.video_frame.winfo_id())
+            self.player.set_hwnd(window_id)
+            print(f"[VideoPlayer] Set Windows HWND: {window_id}")
         else:  # Linux/Mac
-            self.player.set_xwindow(self.video_frame.winfo_id())
+            self.player.set_xwindow(window_id)
+            print(f"[VideoPlayer] Set X11 window: {window_id}")
         
         # Get video dimensions
         media.parse()
         time.sleep(0.1)  # Give VLC time to parse
-        
-        video_width = self.player.video_get_width() or 1920
-        video_height = self.player.video_get_height() or 1080
+
+        video_width = self.player.video_get_width()
+        video_height = self.player.video_get_height()
+
+        # If dimensions are not available, start playing to get them
+        if not video_width or not video_height:
+            print(f"[VideoPlayer] Dimensions not available after parse, starting playback...")
+            self.player.play()
+            time.sleep(0.3)  # Give VLC time to start
+            video_width = self.player.video_get_width() or 1920
+            video_height = self.player.video_get_height() or 1080
+            print(f"[VideoPlayer] Got dimensions after play: {video_width}x{video_height}")
+        else:
+            print(f"[VideoPlayer] Got dimensions from parse: {video_width}x{video_height}")
         
         # Calculate scaling to fit screen while maintaining aspect ratio
         scale_factor = config.VIDEO_PLAYER['scale_factor']
@@ -107,9 +125,18 @@ class VideoPlayer:
         self.video_frame.configure(width=frame_width, height=frame_height)
         print(f"[VideoPlayer] Video frame resized to {frame_width}x{frame_height}")
 
-        # Start playing
-        self.player.play()
-        print(f"[VideoPlayer] player.play() called - video should be playing now")
+        # Start playing (if not already playing from dimension detection)
+        player_state = self.player.get_state()
+        print(f"[VideoPlayer] Current player state: {player_state}")
+
+        if player_state != vlc.State.Playing:
+            self.player.play()
+            print(f"[VideoPlayer] player.play() called - video should start playing")
+        else:
+            print(f"[VideoPlayer] Video already playing from dimension detection")
+
+        # Give VLC a moment to start rendering
+        time.sleep(0.1)
         
     def on_video_ended(self, event):
         """Called when video playback ends"""
