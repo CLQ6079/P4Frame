@@ -67,6 +67,7 @@ SLIDESHOW = {
     'adaptive_top_height': 60,  # Top border height (border_height + 10)
     'preload_ahead': True,      # Preload next batch while displaying current
     'show_progress': True,      # Show batch loading progress
+    'show_timestamps': True,    # Display EXIF timestamp on photos (bottom-right corner)
 }
 
 # === Video Player Settings ===
