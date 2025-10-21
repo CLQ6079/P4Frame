@@ -71,6 +71,9 @@ class VideoPlayer:
         self.player = self.instance.media_player_new()
         print(f"[VideoPlayer] Created media player: {self.player}")
 
+        # IMPORTANT: Don't set xwindow during init - wait until frame is visible
+        # Otherwise VLC won't attach properly on Linux/Raspberry Pi
+
         # Event manager for video end detection
         self.event_manager = self.player.event_manager()
         self.event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.on_video_ended)
@@ -97,10 +100,24 @@ class VideoPlayer:
             self.player.stop()
             time.sleep(0.1)
 
-        # Make sure frame is visible and get window ID
-        self.video_frame.update_idletasks()
+        # CRITICAL: Make sure the frame is visible BEFORE getting window ID
+        # The window must be mapped for VLC to attach properly on Linux
+        print(f"[VideoPlayer] Frame visibility check - is_viewable: {self.video_frame.winfo_viewable()}")
+
+        # Force the frame to be displayed and updated
+        self.video_frame.update()
+        time.sleep(0.1)  # Give X11 time to map the window
+
         window_id = self.video_frame.winfo_id()
+        width = self.video_frame.winfo_width()
+        height = self.video_frame.winfo_height()
+        x = self.video_frame.winfo_x()
+        y = self.video_frame.winfo_y()
+        viewable = self.video_frame.winfo_viewable()
+
         print(f"[VideoPlayer] Window ID: {window_id}")
+        print(f"[VideoPlayer] Frame geometry: {width}x{height} at ({x},{y})")
+        print(f"[VideoPlayer] Frame viewable: {viewable}, mapped: {self.video_frame.winfo_ismapped()}")
 
         # Create and set media
         media = self.instance.media_new(video_path)
@@ -110,9 +127,10 @@ class VideoPlayer:
         # Set video output window
         if os.name == 'nt':  # Windows
             self.player.set_hwnd(window_id)
+            print(f"[VideoPlayer] Video output set to HWND: {window_id}")
         else:  # Linux/Mac (Raspberry Pi)
             self.player.set_xwindow(window_id)
-        print(f"[VideoPlayer] Video output window set")
+            print(f"[VideoPlayer] Video output set to X11 window: {window_id}")
 
         # Just play - no scaling, no resizing, keep it simple
         print(f"[VideoPlayer] Starting playback...")
@@ -123,7 +141,12 @@ class VideoPlayer:
         time.sleep(0.5)
         state = self.player.get_state()
         is_playing = self.player.is_playing()
-        print(f"[VideoPlayer] After 0.5s - State: {state}, is_playing: {is_playing}")
+        has_vout = self.player.has_vout()  # Check if video output is active
+        print(f"[VideoPlayer] After 0.5s - State: {state}, is_playing: {is_playing}, has_vout: {has_vout}")
+
+        if not has_vout:
+            print(f"[VideoPlayer] WARNING: No video output! VLC may not be rendering to window.")
+
         print(f"[VideoPlayer] ==================== PLAY VIDEO END ======================")
         
     def on_video_ended(self, event):
@@ -151,7 +174,10 @@ class VideoPlayer:
         if hasattr(self, 'main_frame'):
             self.main_frame.pack(fill=tk.BOTH, expand=True)
             self.main_frame.lift()  # Bring to front
-            print(f"[VideoPlayer] Frame shown and lifted to front")
+            # Force GUI update to ensure window is mapped
+            self.main_frame.update_idletasks()
+            self.main_frame.update()
+            print(f"[VideoPlayer] Frame shown, lifted, and updated")
 
     def hide(self):
         """Hide the video player frame"""
