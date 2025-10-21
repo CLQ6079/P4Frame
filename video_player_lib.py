@@ -45,10 +45,11 @@ class VideoPlayer:
         self.current_video = None
         self.on_complete_callback = None
         
-        # Create main frame with white background
+        # Create main frame with white background (initially hidden)
         self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
-        self.main_frame.pack(fill=tk.BOTH, expand=True)
         self.main_frame.pack_propagate(False)
+        # Don't pack initially - will be shown when video plays
+        print(f"[VideoPlayer] Initialized - frame created but hidden")
 
         # Create video frame (centered)
         self.video_frame = tk.Frame(self.main_frame, bg='white')
@@ -130,10 +131,18 @@ class VideoPlayer:
         if self.player:
             self.player.pause()
     
+    def show(self):
+        """Show the video player frame"""
+        if hasattr(self, 'main_frame'):
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.main_frame.lift()  # Bring to front
+            print(f"[VideoPlayer] Frame shown and lifted to front")
+
     def hide(self):
         """Hide the video player frame"""
         if hasattr(self, 'main_frame'):
             self.main_frame.pack_forget()
+            print(f"[VideoPlayer] Frame hidden")
     
     def get_converted_videos(self, directory):
         """Get list of converted (H.264) video files"""

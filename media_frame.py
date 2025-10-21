@@ -188,20 +188,25 @@ class MediaFrame:
         
         # Check if we've reached the end of current queue
         if self.current_index >= len(self.media_queue):
+            logging.info(f"End of queue reached. current_index={self.current_index}, queue_len={len(self.media_queue)}")
             # Process next batch and recreate queue
+            old_batch = self.current_batch_index
             self.current_batch_index += 1
             if self.current_batch_index * self.batch_size >= len(self.all_image_files):
                 # Wrap around to beginning
                 self.current_batch_index = 0
-                if config.DEBUG.get('verbose_logging', False):
-                    logging.info("Restarting from first batch")
-            
+                logging.info("Wrapping around to first batch")
+
+            logging.info(f"Moving from batch {old_batch + 1} to batch {self.current_batch_index + 1}")
+
             if self.process_next_batch():
                 self.create_media_queue()
                 self.current_index = 0
+                logging.info(f"New queue created with {len(self.media_queue)} items")
             else:
                 # No more images, just cycle existing
                 self.current_index = 0
+                logging.warning("No more images to process")
         
         # Get current media item
         media_type, media_item = self.media_queue[self.current_index]
@@ -245,13 +250,13 @@ class MediaFrame:
         """Display a combined photo image"""
         # Hide video player if it exists
         if self.video_player:
-            self.video_player.main_frame.pack_forget()
-        
+            self.video_player.hide()
+
         # Clean up previous photo to prevent memory leak
         if self.current_photo:
             self.photo_label.configure(image='')
             self.current_photo = None
-            
+
         # Show new photo
         from PIL import ImageTk
         photo = ImageTk.PhotoImage(combined_image)
@@ -259,6 +264,7 @@ class MediaFrame:
         self.photo_label.image = photo  # Keep reference
         self.current_photo = photo  # Track for cleanup
         self.photo_label.pack(fill=tk.BOTH, expand=True)
+        self.photo_label.lift()  # Bring photo to front
         
         # Memory management
         self.check_memory_cleanup()
@@ -276,7 +282,9 @@ class MediaFrame:
 
         # Show video player
         if self.video_player:
-            self.video_player.main_frame.pack(fill=tk.BOTH, expand=True)
+            # Make sure frame is visible and update before playing
+            self.video_player.show()
+            self.root.update_idletasks()  # Force GUI update
 
             # Play video with callback for next media
             self.video_player.play_video(video_path, on_complete=self.show_next_media)
