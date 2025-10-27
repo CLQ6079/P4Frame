@@ -284,10 +284,6 @@ class MediaFrame:
             # Make sure frame is visible and update before playing
             self.video_player.show()
             self.root.update_idletasks()  # Force GUI update
-            self.root.update()  # Additional update
-            
-            # Give window time to be properly mapped (like debug_video.py)
-            time.sleep(0.3)
 
             # Play video with callback for next media
             self.video_player.play_video(video_path, on_complete=self.show_next_media)
