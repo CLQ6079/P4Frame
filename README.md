@@ -8,44 +8,7 @@ P4Frame is a dual-component system:
 1. **Smart Photo Slideshow** - Displays multiple photos per screen with intelligent layout
 2. **Video Playback System** - Plays videos with aesthetic gradient backgrounds and automatic H.264 conversion
 
-## Key Features
-
-### Photo Features
-- **Smart Layout**: Automatically arranges multiple photos per screen to maximize space utilization
-- **Automatic Orientation**: Corrects photo rotation based on EXIF metadata
-- **Responsive Scaling**: Scales images to fit screen height while maintaining aspect ratios
-- **Even Spacing**: Distributes borders evenly between images for a clean look
-
-### Video Features
-- **Alternating Display**: Photos and videos alternate in the slideshow
-- **Gradient Background**: Videos play with purple-blue gradient background
-- **Background Conversion**: Separate process converts any video format to H.264
-- **Audio Support**: Videos play with sound
-- **CPU Management**: Uses 2 cores for conversion, leaving 2 for playback
-- **Auto-refresh**: Detects new media every 5 minutes
-
-## How It Works
-
-1. **Media Organization**: 
-   - Photos stay in main directory
-   - Videos are converted to H.264 and stored in `converted/` folder
-   - Original videos deleted after conversion to save space
-
-2. **Display Logic**:
-   - Alternates between photo groups and videos
-   - Photos display for configurable duration (default 5 seconds)
-   - Videos play once with audio then move to next item
-
-3. **Background Processing**:
-   - Separate process handles video conversion
-   - Uses 2 CPU cores, preserving performance for playback
-   - Converts videos to optimized H.264 format
-
-4. **Background Processing**:
-   - Video converter runs in the background automatically
-   - Optimized for continuous operation with automatic memory cleanup
-   - Comprehensive logging with rotation
-   - Graceful error handling
+For detailed feature information, see [FEATURES.md](FEATURES.md).
 
 ## Installation
 
@@ -61,10 +24,6 @@ python media_frame.py
 ps aux | grep video_converter
 tail -f logs/video_converter/converter_*.log
 
-### Controls
-- **ESC**: Exit fullscreen/quit application
-- Videos play once with audio
-- Photos display for configured delay
 
 ## Configuration
 
