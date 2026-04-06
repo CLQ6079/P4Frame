@@ -59,3 +59,4 @@ The system automatically detects new media files every 5 minutes, ensuring your 
 - **ESC**: Exit fullscreen/quit application
 - Videos play automatically once with audio
 - Photos display for the configured delay period
+
