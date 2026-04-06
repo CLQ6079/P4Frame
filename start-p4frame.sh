@@ -9,6 +9,14 @@ cd "$SCRIPT_DIR"
 echo "P4Frame Startup Script"
 echo "======================"
 
+# Set DISPLAY if not already set (for headless/SSH operation)
+if [ -z "$DISPLAY" ]; then
+    echo "No DISPLAY set, using :0.0 (local display)"
+    export DISPLAY=:0.0
+fi
+
+echo "Using DISPLAY: $DISPLAY"
+
 # Check if video converter is already running
 if pgrep -f "video_converter.py" > /dev/null; then
     echo "✓ Video converter is already running"

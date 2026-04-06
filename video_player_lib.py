@@ -21,11 +21,8 @@ try:
         x11 = ctypes.CDLL(x11_lib)
         # Initialize X11 threading support
         x11.XInitThreads()
-        print("X11 threading initialized successfully")
-    else:
-        print("Warning: X11 library not found, threading may have issues")
 except Exception as e:
-    print(f"Warning: Could not initialize X11 threading: {e}")
+    pass
 
 # Singleton VLC instance to prevent recreation
 _vlc_instance = None
@@ -35,15 +32,12 @@ def get_vlc_instance():
     global _vlc_instance
     if _vlc_instance is None:
         vlc_args = config.VIDEO_PLAYER['vlc_options']
-        print(f"[VLC] Creating VLC instance with options: '{vlc_args}'")
 
         # If empty, use minimal options for Raspberry Pi
         if not vlc_args:
             vlc_args = '--no-audio --verbose=2'
-            print(f"[VLC] Using default options: '{vlc_args}'")
 
         _vlc_instance = vlc.Instance(vlc_args)
-        print(f"[VLC] VLC instance created: {_vlc_instance}")
     return _vlc_instance
 
 class VideoPlayer:
@@ -57,19 +51,15 @@ class VideoPlayer:
         # Create main frame with white background (initially hidden)
         self.main_frame = tk.Frame(root, bg='white', width=screen_width, height=screen_height)
         self.main_frame.pack_propagate(False)
-        print(f"[VideoPlayer] Main frame created: {screen_width}x{screen_height}")
 
         # Create video frame - use full screen instead of centered
         self.video_frame = tk.Frame(self.main_frame, bg='black')
         self.video_frame.pack(fill=tk.BOTH, expand=True)
-        print(f"[VideoPlayer] Video frame created and packed")
 
         # Use singleton VLC instance
         self.instance = get_vlc_instance()
-        print(f"[VideoPlayer] Got VLC instance")
 
         self.player = self.instance.media_player_new()
-        print(f"[VideoPlayer] Created media player: {self.player}")
 
         # IMPORTANT: Don't set xwindow during init - wait until frame is visible
         # Otherwise VLC won't attach properly on Linux/Raspberry Pi
@@ -77,16 +67,11 @@ class VideoPlayer:
         # Event manager for video end detection
         self.event_manager = self.player.event_manager()
         self.event_manager.event_attach(vlc.EventType.MediaPlayerEndReached, self.on_video_ended)
-        print(f"[VideoPlayer] Event manager attached")
-        print(f"[VideoPlayer] ========== VideoPlayer initialization complete ==========")
         
     def play_video(self, video_path, on_complete=None):
         """Play a video file - simplified version"""
-        print(f"[VideoPlayer] ==================== PLAY VIDEO START ====================")
-        print(f"[VideoPlayer] Video: {os.path.basename(video_path)}")
 
         if not os.path.exists(video_path):
-            print(f"[VideoPlayer] ERROR: Video file not found: {video_path}")
             if on_complete:
                 on_complete()
             return
@@ -96,13 +81,11 @@ class VideoPlayer:
 
         # Stop any currently playing video
         if self.player.is_playing():
-            print(f"[VideoPlayer] Stopping current video")
             self.player.stop()
             time.sleep(0.1)
 
         # CRITICAL: Make sure the frame is visible BEFORE getting window ID
         # The window must be mapped for VLC to attach properly on Linux
-        print(f"[VideoPlayer] Frame visibility check - is_viewable: {self.video_frame.winfo_viewable()}")
 
         # Force the frame to be displayed and updated
         self.video_frame.update()
@@ -115,49 +98,31 @@ class VideoPlayer:
         y = self.video_frame.winfo_y()
         viewable = self.video_frame.winfo_viewable()
 
-        print(f"[VideoPlayer] Window ID: {window_id}")
-        print(f"[VideoPlayer] Frame geometry: {width}x{height} at ({x},{y})")
-        print(f"[VideoPlayer] Frame viewable: {viewable}, mapped: {self.video_frame.winfo_ismapped()}")
 
         # Create and set media
         media = self.instance.media_new(video_path)
         self.player.set_media(media)
-        print(f"[VideoPlayer] Media set")
 
         # Set video output window
         if os.name == 'nt':  # Windows
             self.player.set_hwnd(window_id)
-            print(f"[VideoPlayer] Video output set to HWND: {window_id}")
         else:  # Linux/Mac (Raspberry Pi)
             self.player.set_xwindow(window_id)
-            print(f"[VideoPlayer] Video output set to X11 window: {window_id}")
 
         # Just play - no scaling, no resizing, keep it simple
-        print(f"[VideoPlayer] Starting playback...")
         result = self.player.play()
-        print(f"[VideoPlayer] play() returned: {result} (0 = success, -1 = error)")
 
         # Wait a bit and check state
         time.sleep(0.5)
         state = self.player.get_state()
         is_playing = self.player.is_playing()
         has_vout = self.player.has_vout()  # Check if video output is active
-        print(f"[VideoPlayer] After 0.5s - State: {state}, is_playing: {is_playing}, has_vout: {has_vout}")
-
-        if not has_vout:
-            print(f"[VideoPlayer] WARNING: No video output! VLC may not be rendering to window.")
-
-        print(f"[VideoPlayer] ==================== PLAY VIDEO END ======================")
         
     def on_video_ended(self, event):
         """Called when video playback ends"""
-        print(f"[VideoPlayer] on_video_ended event fired for: {os.path.basename(self.current_video) if self.current_video else 'unknown'}")
         if self.on_complete_callback:
             # Schedule callback in main thread
-            print(f"[VideoPlayer] Scheduling on_complete callback")
             self.root.after(100, self.on_complete_callback)
-        else:
-            print(f"[VideoPlayer] No on_complete callback set")
     
     def stop(self):
         """Stop current video playback"""
@@ -177,13 +142,11 @@ class VideoPlayer:
             # Force GUI update to ensure window is mapped
             self.main_frame.update_idletasks()
             self.main_frame.update()
-            print(f"[VideoPlayer] Frame shown, lifted, and updated")
 
     def hide(self):
         """Hide the video player frame"""
         if hasattr(self, 'main_frame'):
             self.main_frame.pack_forget()
-            print(f"[VideoPlayer] Frame hidden")
     
     def get_converted_videos(self, directory):
         """Get list of converted (H.264) video files"""
