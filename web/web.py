@@ -8,6 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import json
+import re
 import signal
 import subprocess
 import argparse
@@ -31,6 +32,32 @@ HIDDEN_FIELDS = {
     'converted_subfolder', 'tmp_extension', 'virtual_display',
     'user', 'group', 'working_directory',
 }
+
+
+def parse_config_comments():
+    """Parse inline # comments from config.py, returns {section: {key: comment}}."""
+    config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.py')
+    comments = {}
+    current_section = None
+    section_re = re.compile(r'^([A-Z_]+)\s*=\s*\{')
+    field_re = re.compile(r"""['"](\w+)['"]\s*:.*?#\s*(.+)$""")
+    try:
+        with open(config_path) as f:
+            for line in f:
+                m = section_re.match(line)
+                if m:
+                    current_section = m.group(1)
+                    comments.setdefault(current_section, {})
+                    continue
+                if current_section:
+                    m = field_re.search(line)
+                    if m:
+                        comments[current_section][m.group(1)] = m.group(2).strip()
+    except OSError:
+        pass
+    return comments
+
+CONFIG_COMMENTS = parse_config_comments()
 
 
 def get_current_config():
@@ -79,14 +106,17 @@ def find_media_frame_pid():
 
 
 def restart_media_frame(conf_path):
-    """Kill existing media_frame.py and start a fresh one."""
+    """Restart media_frame.py if it is currently running."""
     pid = find_media_frame_pid()
-    if pid:
-        try:
-            os.kill(pid, signal.SIGTERM)
-            logging.info(f"Sent SIGTERM to media_frame.py (PID {pid})")
-        except ProcessLookupError:
-            pass
+    if not pid:
+        logging.info("media_frame.py is not running, skipping restart")
+        return
+
+    try:
+        os.kill(pid, signal.SIGTERM)
+        logging.info(f"Sent SIGTERM to media_frame.py (PID {pid})")
+    except ProcessLookupError:
+        pass
 
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     env = os.environ.copy()
@@ -102,35 +132,37 @@ def restart_media_frame(conf_path):
 
 
 def render_field(section, key, value):
-    """Render a single form field."""
+    """Render a single form field with optional comment hint from config.py."""
     name = f"{section}.{key}"
     label = key.replace('_', ' ').title()
+    comment = CONFIG_COMMENTS.get(section, {}).get(key, '')
+    hint = f'<span class="hint">{_esc(comment)}</span>' if comment else ''
 
     if isinstance(value, bool):
         checked = 'checked' if value else ''
         return (
             f'<div class="field">'
             f'<label><input type="checkbox" name="{name}" {checked}> {label}</label>'
-            f'</div>'
+            f'{hint}</div>'
         )
     elif isinstance(value, int):
         return (
             f'<div class="field">'
             f'<label>{label}<input type="number" name="{name}" value="{value}"></label>'
-            f'</div>'
+            f'{hint}</div>'
         )
     elif isinstance(value, float):
         return (
             f'<div class="field">'
             f'<label>{label}<input type="number" step="any" name="{name}" value="{value}"></label>'
-            f'</div>'
+            f'{hint}</div>'
         )
     else:  # str
         wide = 'wide' if len(value) > 40 else ''
         return (
             f'<div class="field">'
             f'<label>{label}<input type="text" name="{name}" value="{_esc(value)}" class="{wide}"></label>'
-            f'</div>'
+            f'{hint}</div>'
         )
 
 
@@ -168,6 +200,7 @@ def render_page(current, message=''):
   }}
   input.wide {{ width: 420px; }}
   input[type=checkbox] {{ width: 16px; height: 16px; cursor: pointer; }}
+  .hint {{ display: block; font-size: 12px; color: #666; margin: 2px 0 0 0; }}
   .actions {{ margin-top: 28px; }}
   button {{ background: #1a7a3c; color: #fff; border: none; padding: 10px 28px;
             border-radius: 5px; font-size: 15px; cursor: pointer; }}
@@ -195,11 +228,12 @@ class ConfigHandler(BaseHTTPRequestHandler):
         logging.debug(fmt % args)
 
     def do_GET(self):
-        if self.path != '/':
+        if self.path not in ('/', '/?saved=1'):
             self._respond(404, 'text/plain', b'Not found')
             return
         current = get_current_config()
-        body = render_page(current).encode()
+        message = 'Configuration saved. media_frame.py restarted.' if self.path == '/?saved=1' else ''
+        body = render_page(current, message=message).encode()
         self._respond(200, 'text/html; charset=utf-8', body)
 
     def do_POST(self):
@@ -232,9 +266,10 @@ class ConfigHandler(BaseHTTPRequestHandler):
 
         restart_media_frame(self.conf_path)
 
-        current = get_current_config()
-        body = render_page(current, message='Configuration saved. media_frame.py restarted.').encode()
-        self._respond(200, 'text/html; charset=utf-8', body)
+        # Post/Redirect/Get: redirect so a page refresh won't re-submit the form
+        self.send_response(303)
+        self.send_header('Location', '/?saved=1')
+        self.end_headers()
 
     def _coerce(self, raw, original):
         """Cast form string value to match the original type."""
