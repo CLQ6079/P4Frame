@@ -4,6 +4,7 @@
 
 import os
 import sys
+import signal
 import tkinter as tk
 from slideshow_lib import get_image_files, create_combined_images, correct_orientation
 from video_player_lib import VideoPlayer, alternating_media_generator
@@ -441,6 +442,14 @@ def main():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=handlers or [logging.StreamHandler()]  # Fallback to console if no handlers
     )
+
+    def _reload_log_handlers(signum, frame):
+        for handler in logging.root.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+                handler.stream = open(handler.baseFilename, handler.mode)
+
+    signal.signal(signal.SIGHUP, _reload_log_handlers)
 
     # Now set defaults from loaded config
     screen_width = args.width or config.DISPLAY['screen_width']

@@ -17,7 +17,7 @@ if config.LOGGING['enabled']:
     
     handlers = []
     if config.LOGGING['log_to_file']:
-        handlers.append(logging.FileHandler(f'{LOG_DIR}/converter_{datetime.now().strftime("%Y%m%d")}.log'))
+        handlers.append(logging.FileHandler(f'{LOG_DIR}/converter.log'))
     if config.LOGGING['log_to_console']:
         handlers.append(logging.StreamHandler())
     

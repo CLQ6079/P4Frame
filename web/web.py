@@ -297,11 +297,26 @@ def main():
                         help='Config override file path (e.g. p4frame_linux.conf)')
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.INFO,
-                        format='%(asctime)s - %(levelname)s - %(message)s')
-
     ConfigHandler.conf_path = os.path.abspath(args.conf)
     cfg.load_custom_config(ConfigHandler.conf_path)
+
+    log_dir = cfg.LOGGING.get('log_directory', '.')
+    os.makedirs(log_dir, exist_ok=True)
+    handlers = [logging.StreamHandler()]
+    if cfg.LOGGING.get('log_to_file', True):
+        handlers.append(logging.FileHandler(os.path.join(log_dir, 'web.log')))
+    logging.basicConfig(level=logging.INFO,
+                        format='%(asctime)s - %(levelname)s - %(message)s',
+                        handlers=handlers)
+
+    def _reload_log_handlers(signum, frame):
+        for handler in logging.root.handlers:
+            if isinstance(handler, logging.FileHandler):
+                handler.close()
+                handler.stream = open(handler.baseFilename, handler.mode)
+
+    signal.signal(signal.SIGHUP, _reload_log_handlers)
+
     server = HTTPServer(('0.0.0.0', args.port), ConfigHandler)
     logging.info(f"Config server running at http://0.0.0.0:{args.port}")
     logging.info(f"Config file: {ConfigHandler.conf_path}")
