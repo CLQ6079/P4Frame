@@ -17,18 +17,15 @@ fi
 
 echo "Using DISPLAY: $DISPLAY"
 
+# Create logs directory if it doesn't exist
+mkdir -p logs
+
 # Check if video converter is already running
 if pgrep -f "video_converter.py" > /dev/null; then
     echo "✓ Video converter is already running"
 else
     echo "Starting video converter in background..."
-    # Create logs directory if it doesn't exist
-    mkdir -p logs
-    
-    # Start video converter in background with config
     nohup python3 video_converter.py --config p4frame_raspi4.conf > logs/video_converter.log 2>&1 &
-    
-    # Wait a moment and check if it started
     sleep 2
     if pgrep -f "video_converter.py" > /dev/null; then
         echo "✓ Video converter started successfully"
@@ -36,6 +33,21 @@ else
         echo "✗ Failed to start video converter"
         echo "Check logs/video_converter.log for errors"
         exit 1
+    fi
+fi
+
+# Check if web config server is already running
+if pgrep -f "web/web.py" > /dev/null; then
+    echo "✓ Web config server is already running"
+else
+    echo "Starting web config server in background..."
+    nohup python3 web/web.py --conf p4frame_raspi4.conf > logs/web_config.log 2>&1 &
+    sleep 1
+    if pgrep -f "web/web.py" > /dev/null; then
+        echo "✓ Web config server started (http://$(hostname -I | awk '{print $1}'):8080)"
+    else
+        echo "✗ Failed to start web config server"
+        echo "Check logs/web_config.log for errors"
     fi
 fi
 
@@ -50,6 +62,7 @@ python3 media_frame.py --config p4frame_raspi4.conf
 echo ""
 echo "Media frame stopped."
 echo ""
-echo "Video converter is still running in background."
-echo "To stop it: pkill -f video_converter.py"
-echo "To check status: ps aux | grep video_converter"
+echo "Background services still running:"
+echo "  Video converter: pkill -f video_converter.py"
+echo "  Web config:      pkill -f web/web.py"
+echo "To check status: ps aux | grep -E 'video_converter|web_config'"

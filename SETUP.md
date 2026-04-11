@@ -18,10 +18,11 @@ pip3 install Pillow python-vlc
 
 ## Installation
 
-1. Download all files to your Pi:
+1. Clone or copy all files to your Pi:
 ```bash
 # Default directory /home/pi/P4Frame
-
+git clone <repo-url> /home/pi/P4Frame
+```
 
 2. Create necessary directories:
 ```bash
@@ -30,90 +31,87 @@ mkdir -p logs/video_converter
 mkdir -p /home/pi/Pictures/converted
 ```
 
-## Configuration
+### Web Configuration UI
 
-The system uses centralized configuration in `config.py`. You can customize settings by editing the file directly or using a custom JSON config file.
+A built-in web server lets you view and edit all settings from any browser on the same network — no SSH required. Changes are saved to the conf file and `media_frame.py` restarts automatically.
 
-## File Organization
-
+```bash
+# Start manually (or let start-p4frame.sh handle it)
+python3 web/web.py --conf p4frame_raspi4.conf --port 8080
 ```
-/home/pi/Pictures/
-├── photo1.jpg          # Original photos
-├── photo2.png
-├── video1.avi          # Original videos (will be deleted after conversion)
-├── video2.mov
-└── converted/          # Converted H.264 videos
-    ├── video1_h264.mp4
-    └── video2_h264.mp4
-```
+
+Then open `http://<pi-ip>:8080` in a browser.
 
 ## Running the Application
 
-### Start Video Converter (Background)
+### Recommended: Use the startup script
+
 ```bash
 cd /home/pi/P4Frame
-nohup python3 video_converter.py > logs/video_converter.log 2>&1 &
+./start-p4frame.sh
 ```
 
-### Start Media Frame (Interactive)
+This starts all three services in the correct order:
+1. **Video converter** — background service, converts new videos to H.264
+2. **Web config server** — background service on port 8080
+3. **Media frame** — fullscreen slideshow (foreground)
+
+### Manual startup (interactive)
+
 ```bash
 cd /home/pi/P4Frame
-python3 media_frame.py
+
+# Video converter
+python3 video_converter.py --config p4frame_linux.conf
+# Web config server
+python3 web/web.py --conf p4frame_linux.conf
+# Media frame (foreground)
+python3 media_frame.py --config p4frame_linux.conf
 ```
 
 ## Monitoring and Status
 
-### Check Running Processes
+### Check running processes
 ```bash
-# Check if video converter is running
-ps aux | grep video_converter
-
-# Check all P4Frame processes
-ps aux | grep -E "(media_frame|video_converter)"
+ps aux | grep -E "(media_frame|video_converter|web_config)"
 ```
 
-### View Logs
+### View logs
 ```bash
-# Video converter logs
-tail -f /home/pi/P4Frame/logs/video_converter/converter_*.log
+# Media frame output (if started with nohup)
+tail -f /home/pi/P4Frame/logs/media_frame.log
 
-# Background process log
+# Video converter
 tail -f /home/pi/P4Frame/logs/video_converter.log
-```
 
-### Memory and Resource Usagesupported_formats
-```bash
-# Check memory usage
-free -h
-
-# View process information
-ps aux | grep -E "(python|media_frame|vlc)"
-
-# Check system resources
-top
+# Web config server
+tail -f /home/pi/P4Frame/logs/web_config.log
 ```
 
 ## Maintenance
 
-### Stop Processes
+### Stop all services
 ```bash
-# Stop video converter
-pkill -f video_converter.py
-
-# Stop media frame (or press ESC key)
 pkill -f media_frame.py
-```
-
-### Restart Video Converter
-```bash
-# Stop and restart video converter
 pkill -f video_converter.py
-cd /home/pi/P4Frame
-nohup python3 video_converter.py > logs/video_converter.log 2>&1 &
+pkill -f web/web.py
 ```
 
 ## Controls
 
-- **ESC**: Exit fullscreen/quit application
-- Videos play once with audio
-- Photos display for configured delay (default 5 seconds)
+| Key | Action |
+|-----|--------|
+| **ESC** | Quit application |
+| **Right arrow** / Volume Up | Skip to next media |
+| **Left arrow** / Volume Down | Go to previous media |
+
+## Auto-start on Boot (optional)
+
+To start P4Frame automatically when the Pi boots, add a systemd service or cron job:
+
+```bash
+# Using cron (simplest)
+crontab -e
+# Add this line:
+@reboot sleep 10 && DISPLAY=:0.0 /home/pi/P4Frame/start-p4frame.sh >> /home/pi/P4Frame/logs/startup.log 2>&1
+```
