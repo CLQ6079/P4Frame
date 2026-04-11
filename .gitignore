@@ -12,3 +12,6 @@ p4frame_linux.conf
 # Logs
 logs/
 *.log
+
+# claude settings
+.claude/settings.local.json
