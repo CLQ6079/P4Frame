@@ -30,7 +30,7 @@ start_component() {
     if pgrep -f "$match" > /dev/null; then
         echo "✓ $name already running"
     else
-        eval "nohup $cmd > /dev/null 2>&1 &"
+        eval "nohup env DISPLAY=$DISPLAY $cmd > /dev/null 2>&1 &"
         sleep 1
         if pgrep -f "$match" > /dev/null; then
             echo "✓ $name started (PID $!)"
