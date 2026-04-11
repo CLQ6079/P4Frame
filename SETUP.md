@@ -18,14 +18,10 @@ pip3 install Pillow python-vlc
 
 ## Installation
 
-1. Copy all files to your Pi:
+1. Download all files to your Pi:
 ```bash
-# Create directory
-mkdir -p /home/pi/P4Frame
+# Default directory /home/pi/P4Frame
 
-# Copy files (from your development machine)
-scp *.py *.conf pi@raspberrypi:/home/pi/P4Frame/
-```
 
 2. Create necessary directories:
 ```bash
@@ -85,7 +81,7 @@ tail -f /home/pi/P4Frame/logs/video_converter/converter_*.log
 tail -f /home/pi/P4Frame/logs/video_converter.log
 ```
 
-### Memory and Resource Usage
+### Memory and Resource Usagesupported_formats
 ```bash
 # Check memory usage
 free -h

@@ -108,7 +108,7 @@ class MediaFrame:
         
         videos = []
         for file in os.listdir(converted_dir):
-            if file.lower().endswith(config.MEDIA['supported_video_formats']) and not file.startswith('.'):
+            if file.lower().endswith(tuple(config.MEDIA['supported_video_formats'])) and not file.startswith('.'):
                 videos.append(os.path.join(converted_dir, file))
         
         return sorted(videos)

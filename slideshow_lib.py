@@ -68,7 +68,7 @@ class Slideshow:
         gc.collect()
 
 def get_image_files(directory):
-    supported_formats = config.MEDIA['supported_image_formats']
+    supported_formats = tuple(config.MEDIA['supported_image_formats'])
     all_files = [os.path.join(directory, f) for f in os.listdir(directory) if (f.lower().endswith(supported_formats) and not f.lower().startswith("."))]
     return all_files
 
