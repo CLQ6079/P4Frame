@@ -8,7 +8,11 @@ cd "$SCRIPT_DIR"
 
 CONFIG="${1:-p4frame_raspi4.conf}"
 VENV="$SCRIPT_DIR/.venv/bin/python3"
-PYTHON="${VENV:-python3}"
+if [ -f "$VENV" ]; then
+    PYTHON="$VENV"
+else
+    PYTHON="python3"
+fi
 
 echo "P4Frame Startup"
 echo "==============="
