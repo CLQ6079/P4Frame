@@ -102,7 +102,6 @@ DEBUG = {
 # === Memory Management Settings ===
 MEMORY_MANAGEMENT = {
     'max_cached_images': 3,      # Limit cached combined images
-    'image_cache_ttl': 600,      # Clear cache every 10 minutes (seconds)
     'force_gc_interval': 3600,   # Force garbage collection hourly (seconds)
     'enable_memory_monitoring': True,  # Monitor memory usage
     'memory_limit_mb': 600,      # Warn if memory exceeds this (MB)

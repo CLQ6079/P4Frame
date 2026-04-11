@@ -188,11 +188,14 @@ def create_combined_images(image_files, screen_width, screen_height, border_size
         scaled_height = screen_height - 2 * border_height
         scaled_width = int(img_width * scaled_height / img_height)
         scaled_img = img.resize((scaled_width, scaled_height), Image.LANCZOS)
+        img.close()  # Close original to release file descriptor
 
         # Add timestamp overlay if available and enabled
         if timestamp and config.SLIDESHOW.get('show_timestamps', True):
-            scaled_img = add_timestamp_overlay(scaled_img, timestamp)
-        
+            overlay = add_timestamp_overlay(scaled_img, timestamp)
+            scaled_img.close()  # Close pre-overlay version
+            scaled_img = overlay
+
         if current_width + scaled_width + (len(current_image_row) * border_size) <= screen_width:
             current_image_row.append(scaled_img)
             current_width += scaled_width + border_size
@@ -218,11 +221,12 @@ def create_combined_images(image_files, screen_width, screen_height, border_size
         
         combined_img = Image.new('RGB', (screen_width, screen_height), (255, 255, 255))
         x_offset = even_border_width
-        
+
         for img in row_images:
             combined_img.paste(img, (x_offset, adaptive_top_height))
             x_offset += img.width + even_border_width
-        
+            img.close()  # Close intermediate image after pasting
+
         final_images.append(combined_img)
     
     return final_images

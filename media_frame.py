@@ -88,9 +88,6 @@ class MediaFrame:
         # Memory management
         self.current_photo = None  # Track current PhotoImage for cleanup
         self.last_gc_time = time.time()
-        self.image_cache = []  # Track combined images for cleanup
-        self.max_cache_size = config.MEMORY_MANAGEMENT.get('max_cached_images', 3)
-        self.batch_cache = {}  # Cache processed batches
         
         # Create media queue (alternating photos and videos)
         self.media_queue = []
@@ -312,11 +309,10 @@ class MediaFrame:
     
     def cleanup_image_cache(self):
         """Clean up cached combined images"""
-        if hasattr(self, 'image_cache'):
-            for img in self.image_cache:
-                if img and hasattr(img, 'close'):
-                    img.close()
-            self.image_cache.clear()
+        for img in self.combined_images:
+            if img and hasattr(img, 'close'):
+                img.close()
+        self.combined_images = []
     
     def manage_cache_size(self):
         """Limit the size of cached images"""
@@ -353,20 +349,12 @@ class MediaFrame:
             # Reset batch processing
             self.current_batch_index = 0
             self.cleanup_image_cache()
-            self.combined_images = []
             
             # Process first batch of new files
             if self.all_image_files:
                 self.process_next_batch()
             
             self.create_media_queue()
-        
-        # Clean up old cache periodically
-        cache_ttl = config.MEMORY_MANAGEMENT.get('image_cache_ttl', 600)
-        if time.time() - self.last_gc_time > cache_ttl:
-            self.cleanup_image_cache()
-            gc.collect()
-            self.last_gc_time = time.time()
         
         # Check again based on config
         self.root.after(config.MEDIA['refresh_interval'], self.refresh_media)

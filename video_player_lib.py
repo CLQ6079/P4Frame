@@ -102,6 +102,7 @@ class VideoPlayer:
         # Create and set media
         media = self.instance.media_new(video_path)
         self.player.set_media(media)
+        media.release()  # Player holds its own reference; release ours to prevent leak
 
         # Set video output window
         if os.name == 'nt':  # Windows
@@ -166,6 +167,7 @@ class VideoPlayer:
     def cleanup(self):
         """Clean up resources"""
         if self.player:
+            self.event_manager.event_detach(vlc.EventType.MediaPlayerEndReached)
             self.player.stop()
             self.player.release()
             self.player = None
