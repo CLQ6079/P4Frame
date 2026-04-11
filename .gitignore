@@ -6,9 +6,6 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Local config (machine-specific)
-p4frame_linux.conf
-
 # Logs
 logs/
 *.log

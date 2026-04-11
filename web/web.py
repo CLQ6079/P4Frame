@@ -96,8 +96,9 @@ def restart_media_frame(conf_path):
     cmd = [sys.executable, os.path.join(script_dir, 'media_frame.py'),
            '--config', conf_path]
     proc = subprocess.Popen(cmd, env=env,
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    logging.info(f"Started media_frame.py (PID {proc.pid})")
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                            start_new_session=True)
+    logging.info(f"Started media_frame.py (PID {proc.pid}): {' '.join(cmd)}")
 
 
 def render_field(section, key, value):
@@ -227,6 +228,7 @@ class ConfigHandler(BaseHTTPRequestHandler):
 
         save_conf_file(self.conf_path, overrides)
         logging.info(f"Config saved to {self.conf_path}")
+        cfg.load_custom_config(self.conf_path)
 
         restart_media_frame(self.conf_path)
 
@@ -256,14 +258,15 @@ class ConfigHandler(BaseHTTPRequestHandler):
 def main():
     parser = argparse.ArgumentParser(description='P4Frame web configuration server')
     parser.add_argument('--port', type=int, default=DEFAULT_PORT, help='HTTP port (default: 8080)')
-    parser.add_argument('--conf', default='./p4frame.conf',
-                        help='Config override file path (default: ./p4frame.conf)')
+    parser.add_argument('--conf', required=True,
+                        help='Config override file path (e.g. p4frame_linux.conf)')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO,
                         format='%(asctime)s - %(levelname)s - %(message)s')
 
     ConfigHandler.conf_path = os.path.abspath(args.conf)
+    cfg.load_custom_config(ConfigHandler.conf_path)
     server = HTTPServer(('0.0.0.0', args.port), ConfigHandler)
     logging.info(f"Config server running at http://0.0.0.0:{args.port}")
     logging.info(f"Config file: {ConfigHandler.conf_path}")

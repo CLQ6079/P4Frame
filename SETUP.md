@@ -64,8 +64,10 @@ cd /home/pi/P4Frame
 # Video converter
 python3 video_converter.py --config p4frame_linux.conf
 # Web config server
+source .venv/bin/activate
 python3 web/web.py --conf p4frame_linux.conf
 # Media frame (foreground)
+source .venv/bin/activate
 python3 media_frame.py --config p4frame_linux.conf
 ```
 
