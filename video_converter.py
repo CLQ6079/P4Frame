@@ -186,7 +186,7 @@ class VideoConverterService:
                 logging.debug(f"DEBUG: Starting new conversion cycle")
                 converted_count = self.run_once()
                 if converted_count > 0:
-                    logging.info(f"Conversion cycle complete. Processed {converted_count} videos")
+                    logging.debug(f"Conversion cycle complete. Processed {converted_count} videos")
                 else:
                     logging.debug(f"DEBUG: No videos processed this cycle")
 

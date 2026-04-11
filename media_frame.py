@@ -168,7 +168,7 @@ class MediaFrame:
             video_index = self.current_batch_index % len(self.video_files)
             video_path = self.video_files[video_index]
             self.media_queue.append(('video', video_path))
-            logging.info(f"Added video to queue: {os.path.basename(video_path)} (batch {self.current_batch_index + 1})")
+            logging.debug(f"Added video to queue: {os.path.basename(video_path)} (batch {self.current_batch_index + 1})")
         else:
             logging.warning("No video files found - playing photos only")
     
@@ -185,16 +185,16 @@ class MediaFrame:
         
         # Check if we've reached the end of current queue
         if self.current_index >= len(self.media_queue):
-            logging.info(f"End of queue reached. current_index={self.current_index}, queue_len={len(self.media_queue)}")
+            logging.debug(f"End of queue reached. current_index={self.current_index}, queue_len={len(self.media_queue)}")
             # Process next batch and recreate queue
             old_batch = self.current_batch_index
             self.current_batch_index += 1
             if self.current_batch_index * self.batch_size >= len(self.all_image_files):
                 # Wrap around to beginning
                 self.current_batch_index = 0
-                logging.info("Wrapping around to first batch")
+                logging.debug("Wrapping around to first batch")
 
-            logging.info(f"Moving from batch {old_batch + 1} to batch {self.current_batch_index + 1}")
+            logging.debug(f"Moving from batch {old_batch + 1} to batch {self.current_batch_index + 1}")
 
             if self.process_next_batch():
                 self.create_media_queue()
@@ -207,12 +207,12 @@ class MediaFrame:
         
         # Get current media item
         media_type, media_item = self.media_queue[self.current_index]
-        logging.info(f"show_next_media: index={self.current_index}, type={media_type}, queue_len={len(self.media_queue)}")
+        logging.debug(f"show_next_media: index={self.current_index}, type={media_type}, queue_len={len(self.media_queue)}")
 
         if media_type == 'photo':
             self.show_photo(media_item)
         elif media_type == 'video' and config.VIDEO_PLAYER.get('enabled', True):
-            logging.info(f"Calling show_video for: {os.path.basename(media_item)}")
+            logging.debug(f"Calling show_video for: {os.path.basename(media_item)}")
             self.show_video(media_item)
         else:
             # Skip video if player disabled, move to next item
@@ -272,7 +272,7 @@ class MediaFrame:
     
     def show_video(self, video_path):
         """Play a video"""
-        logging.info(f"Attempting to play video: {video_path}")
+        logging.debug(f"Attempting to play video: {video_path}")
 
         # Hide photo label
         self.photo_label.pack_forget()
@@ -285,7 +285,7 @@ class MediaFrame:
 
             # Play video with callback for next media
             self.video_player.play_video(video_path, on_complete=self.show_next_media)
-            logging.info(f"Video player started for: {os.path.basename(video_path)}")
+            logging.debug(f"Video player started for: {os.path.basename(video_path)}")
         else:
             logging.error("Video player is None - cannot play video!")
     
@@ -334,7 +334,7 @@ class MediaFrame:
             gc.collect()
             self.last_gc_time = current_time
             if config.DEBUG.get('verbose_logging', False):
-                logging.info(f"Garbage collection performed at {current_time}")
+                logging.debug(f"Garbage collection performed at {current_time}")
     
     def refresh_media(self):
         """Refresh media lists (for detecting new files)"""
