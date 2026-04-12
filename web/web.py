@@ -28,6 +28,7 @@ DEFAULT_PORT = 8080
 SECTIONS = [
     'MEDIA', 'DISPLAY', 'SLIDESHOW', 'VIDEO_PLAYER',
     'VIDEO_CONVERSION', 'LOGGING', 'SYSTEM', 'DEBUG', 'MEMORY_MANAGEMENT',
+    'WEATHER',
 ]
 
 # Fields to hide from the UI (internal implementation details)
@@ -77,6 +78,9 @@ def get_current_config():
                 continue
             if isinstance(v, (bool, int, float, str)):
                 fields[k] = v
+            elif isinstance(v, list) and all(isinstance(i, str) for i in v):
+                # Represent string lists as comma-separated values in the form
+                fields[k] = ', '.join(v)
         if fields:
             result[section] = fields
     return result
@@ -141,6 +145,28 @@ def render_field(section, key, value):
     label = key.replace('_', ' ').title()
     comment = CONFIG_COMMENTS.get(section, {}).get(key, '')
     hint = f'<span class="hint">{_esc(comment)}</span>' if comment else ''
+
+    # WEATHER.units — fixed set of valid options
+    if section == 'WEATHER' and key == 'units':
+        options = ''.join(
+            f'<option value="{opt}"{"  selected" if value == opt else ""}>{opt.title()}</option>'
+            for opt in ('fahrenheit', 'celsius', 'both')
+        )
+        return (
+            f'<div class="field">'
+            f'<label>{label}<select name="{name}" style="background:#222;border:1px solid #444;'
+            f'color:#eee;padding:4px 8px;border-radius:4px;font-size:14px">{options}</select></label>'
+            f'{hint}</div>'
+        )
+
+    # WEATHER.locations — comma-separated list
+    if section == 'WEATHER' and key == 'locations':
+        hint = hint or '<span class="hint">Comma-separated city names, e.g. Austin, TX, Portland, OR</span>'
+        return (
+            f'<div class="field">'
+            f'<label>{label}<input type="text" name="{name}" value="{_esc(value)}" class="wide"></label>'
+            f'{hint}</div>'
+        )
 
     if isinstance(value, bool):
         checked = 'checked' if value else ''
@@ -278,7 +304,12 @@ class ConfigHandler(BaseHTTPRequestHandler):
                     overrides[section][key] = form_key in params
                 elif form_key in params:
                     raw_val = params[form_key][0]
-                    overrides[section][key] = self._coerce(raw_val, original)
+                    # Comma-separated string lists (e.g. WEATHER.locations) → list
+                    actual = getattr(cfg, section, {}).get(key)
+                    if isinstance(actual, list):
+                        overrides[section][key] = [s.strip() for s in raw_val.split(',') if s.strip()]
+                    else:
+                        overrides[section][key] = self._coerce(raw_val, original)
 
         save_conf_file(self.conf_path, overrides)
         logging.info(f"Config saved to {self.conf_path}")
