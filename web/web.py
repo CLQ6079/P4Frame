@@ -18,6 +18,10 @@ from urllib.parse import parse_qs
 
 import config as cfg
 
+# Import sibling module regardless of how the server is launched
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import upload as upload_handler
+
 DEFAULT_PORT = 8080
 
 # Sections to expose, in display order. Tuple/list fields are skipped automatically.
@@ -187,7 +191,12 @@ def render_page(current, message=''):
 <style>
   * {{ box-sizing: border-box; margin: 0; padding: 0; }}
   body {{ font: 15px/1.5 system-ui, sans-serif; background: #111; color: #eee; padding: 20px; }}
-  h1 {{ margin-bottom: 20px; color: #fff; }}
+  h1 {{ margin-bottom: 16px; color: #fff; }}
+  .tabs {{ display: flex; gap: 2px; margin-bottom: 24px; border-bottom: 1px solid #333; }}
+  .tab {{ padding: 8px 22px; text-decoration: none; color: #888;
+          border-radius: 4px 4px 0 0; font-size: 14px; }}
+  .tab.active {{ background: #222; color: #fff; border: 1px solid #333; border-bottom: 1px solid #222; }}
+  .tab:hover:not(.active) {{ color: #ccc; }}
   h2 {{ font-size: 13px; text-transform: uppercase; letter-spacing: .1em;
         color: #888; margin: 24px 0 10px; border-bottom: 1px solid #333; padding-bottom: 4px; }}
   section {{ margin-bottom: 8px; }}
@@ -209,7 +218,11 @@ def render_page(current, message=''):
 </style>
 </head>
 <body>
-<h1>P4Frame Configuration</h1>
+<h1>P4Frame</h1>
+<nav class="tabs">
+  <a href="/" class="tab active">Config</a>
+  <a href="/upload" class="tab">Upload</a>
+</nav>
 {msg_html}
 <form method="POST" action="/save">
 {sections_html}
@@ -228,6 +241,9 @@ class ConfigHandler(BaseHTTPRequestHandler):
         logging.debug(fmt % args)
 
     def do_GET(self):
+        if self.path == '/upload':
+            upload_handler.handle_get(self)
+            return
         if self.path not in ('/', '/?saved=1'):
             self._respond(404, 'text/plain', b'Not found')
             return
@@ -237,6 +253,10 @@ class ConfigHandler(BaseHTTPRequestHandler):
         self._respond(200, 'text/html; charset=utf-8', body)
 
     def do_POST(self):
+        if self.path == '/upload':
+            media_dir = cfg.MEDIA.get('media_directory', '.')
+            upload_handler.handle_post(self, media_dir)
+            return
         if self.path != '/save':
             self._respond(404, 'text/plain', b'Not found')
             return

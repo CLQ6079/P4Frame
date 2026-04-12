@@ -10,10 +10,10 @@ sudo apt-get update
 sudo apt-get upgrade -y
 
 # Install dependencies
-sudo apt-get install -y python3-pip python3-tk ffmpeg vlc
+sudo apt-get install -y python3-pip python3-tk ffmpeg vlc libheif-dev
 
 # Install Python packages
-pip3 install Pillow python-vlc
+pip3 install Pillow python-vlc pillow-heif
 ```
 
 ## Installation
@@ -40,7 +40,7 @@ A built-in web server lets you view and edit all settings from any browser on th
 python3 web/web.py --conf p4frame_raspi4.conf --port 8080
 ```
 
-Then open `http://<pi-ip>:8080` in a browser.
+Then open `http://<pi-ip>:8080` in a browser. The **Upload** tab lets you upload photos and videos directly from a phone or any device on the same network. HEIC photos (iPhone default) are automatically converted to JPEG.
 
 ## Running the Application
 
