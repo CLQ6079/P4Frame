@@ -13,6 +13,8 @@ sudo apt-get upgrade -y
 sudo apt-get install -y python3-pip python3-tk ffmpeg vlc libheif-dev
 
 # Install Python packages
+python3 -m venv .venv
+source .venv/bin/activate
 pip3 install Pillow python-vlc pillow-heif
 ```
 
@@ -21,14 +23,13 @@ pip3 install Pillow python-vlc pillow-heif
 1. Clone or copy all files to your Pi:
 ```bash
 # Default directory /home/pi/P4Frame
-git clone <repo-url> /home/pi/P4Frame
+git clone https://github.com/CLQ6079/P4Frame.git /home/pi/P4Frame
 ```
 
 2. Create necessary directories:
 ```bash
 cd /home/pi/P4Frame
-mkdir -p logs/video_converter
-mkdir -p /home/pi/Pictures/converted
+mkdir -p logs/
 ```
 
 ### Web Configuration UI
