@@ -69,5 +69,12 @@
     "verbose_logging": false,
     "show_fps": false,
     "show_media_info": true
+  },
+
+  "WEATHER": {
+    "enabled": true,
+    "locations": ["Mountlake Terrace, WA"],
+    "units": "both",
+    "update_interval_minutes": 240
   }
 }

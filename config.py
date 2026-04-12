@@ -99,6 +99,16 @@ DEBUG = {
     'show_media_info': True,
 }
 
+# === Weather Widget Settings ===
+WEATHER = {
+    'enabled': False,               # Set to true to show the weather overlay
+    'locations': ['Austin, TX'],    # List of city names to display (stacked vertically)
+    'units': 'fahrenheit',          # 'fahrenheit', 'celsius', or 'both'
+    'update_interval_minutes': 30,  # How often to refresh weather data
+    'widget_width_pct': 12.5,       # Widget width as % of screen width
+    'margin_pct': 0.5,              # Screen-edge margin as % of screen width
+}
+
 # === Memory Management Settings ===
 MEMORY_MANAGEMENT = {
     'max_cached_images': 3,      # Limit cached combined images

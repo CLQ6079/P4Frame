@@ -85,6 +85,12 @@ class MediaFrame:
         if config.VIDEO_PLAYER.get('enabled', True):
             self.video_player = VideoPlayer(root, self.screen_width, self.screen_height)
         self.photo_label = tk.Label(root, bg='black')
+
+        # Weather overlay (always-on-top Toplevel window)
+        self.weather_widget = None
+        if config.WEATHER.get('enabled', False):
+            from weather_widget import WeatherWidget
+            self.weather_widget = WeatherWidget(root, self.screen_width, self.screen_height)
         
         # Memory management
         self.current_photo = None  # Track current PhotoImage for cleanup
@@ -262,7 +268,9 @@ class MediaFrame:
         self.current_photo = photo  # Track for cleanup
         self.photo_label.pack(fill=tk.BOTH, expand=True)
         self.photo_label.lift()  # Bring photo to front
-        
+        if self.weather_widget:
+            self.weather_widget.bring_to_front()
+
         # Memory management
         self.check_memory_cleanup()
         
@@ -286,6 +294,8 @@ class MediaFrame:
             # Play video with callback for next media
             self.video_player.play_video(video_path, on_complete=self.show_next_media)
             logging.debug(f"Video player started for: {os.path.basename(video_path)}")
+            if self.weather_widget:
+                self.weather_widget.bring_to_front()
         else:
             logging.error("Video player is None - cannot play video!")
     
