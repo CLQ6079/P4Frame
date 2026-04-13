@@ -88,7 +88,8 @@ class MediaFrame:
         self.video_player = None
         if config.VIDEO_PLAYER.get('enabled', True):
             self.video_player = VideoPlayer(root, self.screen_width, self.screen_height)
-        self.photo_label = tk.Label(root, bg='black')
+        photo_anchor = config.DISPLAY.get('photo_anchor', 'center')
+        self.photo_label = tk.Label(root, bg='black', anchor=photo_anchor)
 
         # Weather overlay (always-on-top Toplevel window)
         self.weather_widget = None

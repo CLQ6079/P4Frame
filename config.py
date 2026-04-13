@@ -11,6 +11,7 @@ DISPLAY = {
     'screen_height': 1080,       # Default screen height in pixels
     'fullscreen': True,          # Start in fullscreen mode
     'override_redirect': False,  # Remove window decorations (needed for Wayland on Pi OS Bookworm+)
+    'photo_anchor': 'center',   # Photo anchor position: 'center' or 'nw' (top-left)
     'hide_cursor': True,         # Hide mouse cursor in kiosk mode
     'background_color': 'black', # Background color
 }
