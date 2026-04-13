@@ -32,9 +32,10 @@ class MediaFrame:
         # Fullscreen
         if config.DISPLAY['fullscreen']:
             root.attributes('-fullscreen', True)
-            # overrideredirect removes window decorations on Wayland (Pi OS Bookworm+)
-            root.overrideredirect(True)
-            root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
+            if config.DISPLAY.get('override_redirect', False):
+                # Removes window decorations on Wayland (Pi OS Bookworm+)
+                root.overrideredirect(True)
+                root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
         root.configure(bg=config.DISPLAY['background_color'])
         
         # Bind escape key to exit
