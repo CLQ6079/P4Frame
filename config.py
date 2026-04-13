@@ -107,8 +107,8 @@ WEATHER = {
     'locations': ['Austin, TX'],    # List of city names to display (stacked vertically)
     'units': 'fahrenheit',          # 'fahrenheit', 'celsius', or 'both'
     'update_interval_minutes': 30,  # How often to refresh weather data
-    'widget_width_pct': 12.5,       # Widget width as % of screen width
-    'margin_pct': 0.5,              # Screen-edge margin as % of screen width
+    'margin_pct': 0.5,              # Screen-edge margin as % of screen width (top gap)
+    'scale': 1.0,                   # Font size multiplier (e.g. 1.5 for larger text on Pi)
 }
 
 # === Memory Management Settings ===
