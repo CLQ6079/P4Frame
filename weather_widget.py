@@ -86,6 +86,9 @@ class WeatherWidget(tk.Toplevel):
         self.f_main  = ('DejaVu Sans', _fs(11))
         self.f_small = ('DejaVu Sans', _fs(10))
         self.f_tiny  = ('DejaVu Sans', _fs(9))
+        # Banner height: two stacked labels (f_tiny + f_main) + padding
+        # Use point-to-pixel ratio ~1.33 as a safe approximation
+        self._banner_h = round((_fs(9) + _fs(11)) * 1.33) + 16
 
         # ── Window chrome ───────────────────────────────────────────────────
         self.overrideredirect(True)
@@ -108,9 +111,7 @@ class WeatherWidget(tk.Toplevel):
     # ── Positioning ─────────────────────────────────────────────────────────
 
     def _position(self):
-        self.update_idletasks()
-        h = self._row.winfo_reqheight() + 8   # 8 = 2×pady
-        self.geometry(f'{self.screen_width}x{h}+0+{self.MARGIN}')
+        self.geometry(f'{self.screen_width}x{self._banner_h}+0+{self.MARGIN}')
 
     # ── Loading placeholder ─────────────────────────────────────────────────
 
@@ -119,7 +120,6 @@ class WeatherWidget(tk.Toplevel):
             self._row, text='  Loading weather…',
             bg=self.BG, fg=self.FG_DIM, font=self.f_small,
         ).pack(side='left', padx=8)
-        self._position()
 
     # ── Data fetching (background thread) ───────────────────────────────────
 
