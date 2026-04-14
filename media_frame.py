@@ -99,7 +99,7 @@ class MediaFrame:
         if config.WEATHER.get('enabled', False):
             from weather_widget import WeatherWidget
             self.weather_widget = WeatherWidget(root, self.screen_width, self.screen_height)
-            top = config.DISPLAY.get('adaptive_top_height', 0)
+            top = config.WEATHER.get('y_offset', 0)
             self.weather_widget.place(x=0, y=top, relwidth=1.0,
                                       height=self.weather_widget._banner_h)
             self.weather_widget.lift()

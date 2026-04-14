@@ -66,7 +66,7 @@ SLIDESHOW = {
     'batch_size': 10,           # Number of images to process per batch (affects startup time)
     'border_size': 30,          # Border size between images in pixels
     'border_height': 50,        # Fixed border height
-    'adaptive_top_height': 60,  # Top border height (border_height + 10)
+    'adaptive_top_height': 80,  # Top border height (border_height + 10)
     'preload_ahead': True,      # Preload next batch while displaying current
     'show_progress': True,      # Show batch loading progress
     'show_timestamps': True,    # Display EXIF timestamp on photos (bottom-right corner)
@@ -109,6 +109,7 @@ WEATHER = {
     'update_interval_minutes': 30,  # How often to refresh weather data
     'margin_pct': 0.5,              # Screen-edge margin as % of screen width (top gap)
     'scale': 1.0,                   # Font size multiplier (e.g. 1.5 for larger text on Pi)
+    'y_offset': 0,                  # Pixels from top of screen where the banner is placed
 }
 
 # === Memory Management Settings ===
