@@ -31,11 +31,14 @@ class MediaFrame:
         
         # Fullscreen
         if config.DISPLAY['fullscreen']:
-            root.attributes('-fullscreen', True)
             if config.DISPLAY.get('override_redirect', False):
-                # Removes window decorations on Wayland (Pi OS Bookworm+)
+                # On Wayland (Pi OS Bookworm+): use overrideredirect + explicit geometry
+                # instead of -fullscreen, so the compositor doesn't enter exclusive
+                # fullscreen mode (which would block Toplevel overlays like the weather banner).
                 root.overrideredirect(True)
                 root.geometry(f"{self.screen_width}x{self.screen_height}+0+0")
+            else:
+                root.attributes('-fullscreen', True)
         root.configure(bg=config.DISPLAY['background_color'])
         
         # Bind escape key to exit
