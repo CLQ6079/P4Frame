@@ -48,9 +48,14 @@ def _c_to_f(c):
     return c * 9 / 5 + 32
 
 
-class WeatherWidget(tk.Toplevel):
+class WeatherWidget(tk.Frame):
     """
     Horizontal banner pinned to the top of the display.
+
+    Implemented as a plain Frame (not Toplevel) so it works under Wayland/labwc
+    where a Toplevel cannot appear above a fullscreen override-redirect window.
+    The parent (media_frame) positions it via place() and calls lift() after
+    each media transition.
 
     Single-row layout per location:
       📍 Location  |  ☀️ Today Mon 13  H:72°F L:58°F  |  8a ☀️  10a ⛅  12p ⛅ …
@@ -71,12 +76,11 @@ class WeatherWidget(tk.Toplevel):
     TODAY_LBLS  = ['8a', '10a', '12p', '2p', '4p', '6p', '8p']
 
     def __init__(self, root, screen_width, screen_height):
-        super().__init__(root)
+        self.cfg = getattr(config, 'WEATHER', {})
+        super().__init__(root, bg=self.BG)
+
         self.screen_width  = screen_width
         self.screen_height = screen_height
-        self.cfg = getattr(config, 'WEATHER', {})
-
-        self.MARGIN = int(screen_width * self.cfg.get('margin_pct', 0.5) / 100)
         self._results = []   # [(loc_name, coords_dict, weather_dict), …]
 
         # ── Scale ───────────────────────────────────────────────────────────
@@ -90,34 +94,15 @@ class WeatherWidget(tk.Toplevel):
         # Use point-to-pixel ratio ~1.33 as a safe approximation
         self._banner_h = round((_fs(9) + _fs(11)) * 1.33) + 16
 
-        # ── Window chrome ───────────────────────────────────────────────────
-        self.overrideredirect(True)
-        self.configure(bg=self.BG)
-        self.attributes('-topmost', True)
-        try:
-            self.attributes('-alpha', 0.88)
-        except Exception:
-            pass
-
         # ── Single row frame ────────────────────────────────────────────────
-        # Set explicit size on the frame and disable propagation so the Toplevel
-        # sizes itself from the frame (same mechanism as old Canvas(width=W)).
-        # _position() then only needs to set +x+y, avoiding XWayland issues
-        # with geometry() calls that include WxH on an unmapped window.
         self._row = tk.Frame(self, bg=self.BG,
                              width=self.screen_width, height=self._banner_h)
         self._row.pack_propagate(False)
         self._row.pack(fill='both', expand=True)
 
         self._show_loading()
-        self._position()
         self._fetch_all()
         self._schedule_refresh()
-
-    # ── Positioning ─────────────────────────────────────────────────────────
-
-    def _position(self):
-        self.geometry(f'+0+{self.MARGIN}')
 
     # ── Loading placeholder ─────────────────────────────────────────────────
 
@@ -213,8 +198,7 @@ class WeatherWidget(tk.Toplevel):
                     bg=self.BG, fg=self.FG_DIM, font=self.f_small,
                 ).pack(side='left', padx=8)
 
-        self._position()
-        self.attributes('-topmost', True)
+        self.lift()
 
     def _build_location(self, display_name, weather):
         daily  = weather.get('daily', {})
@@ -308,4 +292,3 @@ class WeatherWidget(tk.Toplevel):
 
     def bring_to_front(self):
         self.lift()
-        self.attributes('-topmost', True)

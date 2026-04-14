@@ -94,11 +94,14 @@ class MediaFrame:
         photo_anchor = config.DISPLAY.get('photo_anchor', 'center')
         self.photo_label = tk.Label(root, bg='black', anchor=photo_anchor)
 
-        # Weather overlay (always-on-top Toplevel window)
+        # Weather banner — placed inside root so it works on Wayland/labwc
         self.weather_widget = None
         if config.WEATHER.get('enabled', False):
             from weather_widget import WeatherWidget
             self.weather_widget = WeatherWidget(root, self.screen_width, self.screen_height)
+            self.weather_widget.place(x=0, y=0, relwidth=1.0,
+                                      height=self.weather_widget._banner_h)
+            self.weather_widget.lift()
         
         # Memory management
         self.current_photo = None  # Track current PhotoImage for cleanup
