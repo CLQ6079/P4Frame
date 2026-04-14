@@ -100,8 +100,14 @@ class WeatherWidget(tk.Toplevel):
             pass
 
         # ── Single row frame ────────────────────────────────────────────────
-        self._row = tk.Frame(self, bg=self.BG)
-        self._row.pack(fill='both', expand=True, padx=4, pady=4)
+        # Set explicit size on the frame and disable propagation so the Toplevel
+        # sizes itself from the frame (same mechanism as old Canvas(width=W)).
+        # _position() then only needs to set +x+y, avoiding XWayland issues
+        # with geometry() calls that include WxH on an unmapped window.
+        self._row = tk.Frame(self, bg=self.BG,
+                             width=self.screen_width, height=self._banner_h)
+        self._row.pack_propagate(False)
+        self._row.pack(fill='both', expand=True)
 
         self._show_loading()
         self._position()
@@ -111,7 +117,7 @@ class WeatherWidget(tk.Toplevel):
     # ── Positioning ─────────────────────────────────────────────────────────
 
     def _position(self):
-        self.geometry(f'{self.screen_width}x{self._banner_h}+0+{self.MARGIN}')
+        self.geometry(f'+0+{self.MARGIN}')
 
     # ── Loading placeholder ─────────────────────────────────────────────────
 
