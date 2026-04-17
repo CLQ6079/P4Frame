@@ -3,6 +3,8 @@
 # Always-on-top weather banner (single row) at the top of the display.
 # Uses Open-Meteo (free, no API key) for geocoding + forecasts.
 
+import os
+import difflib
 import tkinter as tk
 import threading
 import urllib.request
@@ -11,38 +13,65 @@ import json
 import logging
 from datetime import datetime
 
+try:
+    from PIL import Image, ImageTk
+    _PIL_AVAILABLE = True
+except ImportError:
+    _PIL_AVAILABLE = False
+    logging.warning('WeatherWidget: Pillow not installed — falling back to text icons')
+
 import config
 
-# ── WMO weather interpretation codes → (emoji, label) ──────────────────────
-WEATHER_CODES = {
-    0:  ('☀️',  'Clear'),
-    1:  ('🌤️', 'Mainly Clear'),
-    2:  ('⛅',  'Partly Cloudy'),
-    3:  ('☁️',  'Overcast'),
-    45: ('🌫️', 'Fog'),
-    48: ('🌫️', 'Icy Fog'),
-    51: ('🌦️', 'Light Drizzle'),
-    53: ('🌦️', 'Drizzle'),
-    55: ('🌧️', 'Heavy Drizzle'),
-    61: ('🌧️', 'Light Rain'),
-    63: ('🌧️', 'Rain'),
-    65: ('🌧️', 'Heavy Rain'),
-    71: ('❄️',  'Light Snow'),
-    73: ('❄️',  'Snow'),
-    75: ('❄️',  'Heavy Snow'),
-    77: ('❄️',  'Snow Grains'),
-    80: ('🌧️', 'Showers'),
-    81: ('🌧️', 'Showers'),
-    82: ('⛈️',  'Heavy Showers'),
-    85: ('❄️',  'Snow Showers'),
-    86: ('❄️',  'Heavy Snow Showers'),
-    95: ('⛈️',  'Thunderstorm'),
-    96: ('⛈️',  'Thunderstorm'),
-    99: ('⛈️',  'Thunderstorm'),
+# ── WMO weather interpretation codes → (icon filename, label) ──────────────
+# Icons are loaded from icons/weather/<name>.png (Meteocons fill set).
+# Text fallbacks are used when PIL is unavailable or the file is missing.
+WEATHER_CODE_ICONS = {
+    0:  ('clear-day',            'Clear'),
+    1:  ('clear-day',            'Mainly Clear'),
+    2:  ('partly-cloudy-day',    'Partly Cloudy'),
+    3:  ('overcast',             'Overcast'),
+    45: ('fog',                  'Fog'),
+    48: ('fog',                  'Icy Fog'),
+    51: ('drizzle',              'Light Drizzle'),
+    53: ('drizzle',              'Drizzle'),
+    55: ('drizzle',              'Heavy Drizzle'),
+    61: ('rain',                 'Light Rain'),
+    63: ('rain',                 'Rain'),
+    65: ('rain',                 'Heavy Rain'),
+    71: ('snow',                 'Light Snow'),
+    73: ('snow',                 'Snow'),
+    75: ('snow',                 'Heavy Snow'),
+    77: ('snow',                 'Snow Grains'),
+    80: ('rain',                 'Showers'),
+    81: ('rain',                 'Showers'),
+    82: ('thunderstorms-rain',   'Heavy Showers'),
+    85: ('snow',                 'Snow Showers'),
+    86: ('snow',                 'Heavy Snow Showers'),
+    95: ('thunderstorms',        'Thunderstorm'),
+    96: ('thunderstorms-rain',   'Thunderstorm'),
+    99: ('thunderstorms-rain',   'Thunderstorm'),
 }
 
-def _wx_emoji(code):
-    return WEATHER_CODES.get(code, ('❓', 'Unknown'))
+WEATHER_CODE_TEXT = {
+    0:  'Sun',   1:  'Sun',   2:  '~Sun',  3:  'Cld',
+    45: 'Fog',   48: 'Fog',
+    51: 'Drzl',  53: 'Drzl',  55: 'Drzl',
+    61: 'Rain',  63: 'Rain',  65: 'Rain',
+    71: 'Snow',  73: 'Snow',  75: 'Snow',  77: 'Snow',
+    80: 'Shwr',  81: 'Shwr',  82: 'Shwr',
+    85: 'Snow',  86: 'Snow',
+    95: 'Thdr',  96: 'Thdr',  99: 'Thdr',
+}
+
+_ICONS_DIR = os.path.join(os.path.dirname(__file__), 'icons', 'weather')
+
+def _wx_icon_name(code):
+    """Return (icon_filename_stem, label) for a WMO code."""
+    return WEATHER_CODE_ICONS.get(code, ('unknown', 'Unknown'))
+
+def _wx_text(code):
+    """Short text fallback for a WMO code."""
+    return WEATHER_CODE_TEXT.get(code, '?')
 
 def _c_to_f(c):
     return c * 9 / 5 + 32
@@ -58,7 +87,7 @@ class WeatherWidget(tk.Frame):
     each media transition.
 
     Single-row layout per location:
-      📍 Location  |  ☀️ Today Mon 13  H:72°F L:58°F  |  8a ☀️  10a ⛅  12p ⛅ …
+      Location  |  [icon] Mon 13  H:72°F L:58°F  |  8a [icon]  10a [icon]  12p [icon] …
 
     Multiple locations are placed side-by-side separated by a divider.
     Font size is controlled by the 'scale' config key (default 1.0).
@@ -94,6 +123,10 @@ class WeatherWidget(tk.Frame):
         # Use point-to-pixel ratio ~1.33 as a safe approximation
         self._banner_h = round((_fs(9) + _fs(11)) * 1.33) + 16
 
+        # ── Icons ────────────────────────────────────────────────────────────
+        self._icon_size  = self.cfg.get('icon_size', 24)
+        self._icon_cache = {}   # name → ImageTk.PhotoImage (kept to prevent GC)
+
         # ── Single row frame ────────────────────────────────────────────────
         self._row = tk.Frame(self, bg=self.BG,
                              width=self.screen_width, height=self._banner_h)
@@ -103,6 +136,63 @@ class WeatherWidget(tk.Frame):
         self._show_loading()
         self._fetch_all()
         self._schedule_refresh()
+
+    # ── Icon loading ────────────────────────────────────────────────────────
+
+    def _load_icon(self, name):
+        """Return a cached ImageTk.PhotoImage for *name*, or None on failure.
+
+        If the exact file is missing, tries a fuzzy match against whatever
+        PNGs are present in the icons directory before giving up.
+        """
+        if name in self._icon_cache:
+            return self._icon_cache[name]
+        if not _PIL_AVAILABLE:
+            return None
+
+        path = os.path.join(_ICONS_DIR, f'{name}.png')
+
+        if not os.path.isfile(path):
+            # Fuzzy-match against available PNGs
+            resolved = self._fuzzy_resolve_icon(name)
+            if resolved:
+                path = os.path.join(_ICONS_DIR, f'{resolved}.png')
+                logging.info(f'WeatherWidget: icon "{name}" → using "{resolved}" (fuzzy match)')
+            else:
+                logging.warning(f'WeatherWidget: icon "{name}" not found and no close match')
+                self._icon_cache[name] = None
+                return None
+
+        try:
+            img = Image.open(path).convert('RGBA')
+            img = img.resize((self._icon_size, self._icon_size), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            self._icon_cache[name] = photo
+            return photo
+        except Exception as exc:
+            logging.warning(f'WeatherWidget: could not load icon "{name}": {exc}')
+            self._icon_cache[name] = None
+            return None
+
+    def _fuzzy_resolve_icon(self, name):
+        """Return the closest available icon stem for *name*, or None."""
+        if not os.path.isdir(_ICONS_DIR):
+            return None
+        available = [f[:-4] for f in os.listdir(_ICONS_DIR) if f.endswith('.png')]
+        if not available:
+            return None
+        matches = difflib.get_close_matches(name, available, n=1, cutoff=0.4)
+        return matches[0] if matches else None
+
+    def _icon_label(self, parent, code, font):
+        """Return a Label showing the icon image, or a text fallback."""
+        icon_name, _ = _wx_icon_name(code)
+        photo = self._load_icon(icon_name)
+        if photo:
+            return tk.Label(parent, image=photo, bg=self.BG)
+        # Fallback: short text in muted colour
+        return tk.Label(parent, text=_wx_text(code),
+                        bg=self.BG, fg=self.FG, font=font)
 
     # ── Loading placeholder ─────────────────────────────────────────────────
 
@@ -149,9 +239,8 @@ class WeatherWidget(tk.Frame):
         }
 
     def _fetch_weather(self, coords):
-        units_cfg = self.cfg.get('units', 'fahrenheit').lower()
-        show_both = 'both' in units_cfg
-        temp_unit = 'celsius' if (show_both or 'c' in units_cfg) else 'fahrenheit'
+        # Always fetch in Celsius; display conversion is done client-side
+        # so that 'units' and 'forecast_units' can differ independently.
         params = urllib.parse.urlencode({
             'latitude':         coords['lat'],
             'longitude':        coords['lon'],
@@ -159,19 +248,30 @@ class WeatherWidget(tk.Frame):
             'daily':            'weather_code,temperature_2m_max,temperature_2m_min',
             'timezone':         'auto',
             'forecast_days':    8,
-            'temperature_unit': temp_unit,
+            'temperature_unit': 'celsius',
         })
         url = f'https://api.open-meteo.com/v1/forecast?{params}'
         with urllib.request.urlopen(url, timeout=10) as resp:
-            data = json.loads(resp.read())
-        data['_show_both'] = show_both
-        data['_unit']      = '°C' if temp_unit == 'celsius' else '°F'
-        return data
+            return json.loads(resp.read())
 
-    def _fmt_temp(self, val, weather):
-        if weather.get('_show_both'):
-            return f'{round(_c_to_f(val))}°F/{round(val)}°C'
-        return f'{round(val)}{weather.get("_unit", "°F")}'
+    def _fmt_temp(self, val_c, units_cfg):
+        """Format a single Celsius value per units config ('fahrenheit'/'celsius'/'both')."""
+        u = units_cfg.lower()
+        if 'both' in u:
+            return f'{round(_c_to_f(val_c))}°F/{round(val_c)}°C'
+        if 'c' in u:
+            return f'{round(val_c)}°C'
+        return f'{round(_c_to_f(val_c))}°F'
+
+    def _fmt_temp_range(self, low_c, high_c, units_cfg):
+        """Format a low–high range compactly, e.g. '58–72°C'."""
+        u = units_cfg.lower()
+        if 'both' in u:
+            return (f'{round(low_c)}–{round(high_c)}°C'
+                    f' / {round(_c_to_f(low_c))}–{round(_c_to_f(high_c))}°F')
+        if 'c' in u:
+            return f'{round(low_c)}–{round(high_c)}°C'
+        return f'{round(_c_to_f(low_c))}–{round(_c_to_f(high_c))}°F'
 
     # ── Display update (main thread) ─────────────────────────────────────────
 
@@ -204,9 +304,12 @@ class WeatherWidget(tk.Frame):
         daily  = weather.get('daily', {})
         hourly = weather.get('hourly', {})
 
+        units          = self.cfg.get('units', 'fahrenheit')
+        forecast_units = self.cfg.get('forecast_units', units)  # falls back to units if unset
+
         today_str  = daily['time'][0]
         today_dt   = datetime.strptime(today_str, '%Y-%m-%d')
-        today_icon, _ = _wx_emoji(daily['weather_code'][0])
+        today_code = daily['weather_code'][0]
         today_high = daily['temperature_2m_max'][0]
         today_low  = daily['temperature_2m_min'][0]
 
@@ -222,15 +325,17 @@ class WeatherWidget(tk.Frame):
         )
 
         # Today icon + date + H/L
+        self._icon_label(self._row, today_code, self.f_main).pack(
+            side='left', padx=(4, 2))
         tk.Label(
             self._row,
-            text=f"{today_icon} {today_dt.strftime('%a %-d')}",
+            text=today_dt.strftime('%a %-d'),
             bg=self.BG, fg=self.FG, font=self.f_main,
-        ).pack(side='left', padx=(4, 2))
+        ).pack(side='left', padx=(0, 2))
 
         tk.Label(
             self._row,
-            text=f"H:{self._fmt_temp(today_high, weather)}  L:{self._fmt_temp(today_low, weather)}",
+            text=f"H:{self._fmt_temp(today_high, units)}  L:{self._fmt_temp(today_low, units)}",
             bg=self.BG, fg=self.FG_DIM, font=self.f_small,
         ).pack(side='left', padx=(2, 8))
 
@@ -246,15 +351,18 @@ class WeatherWidget(tk.Frame):
         for hour, lbl in zip(self.TODAY_HOURS, self.TODAY_LBLS):
             target = f'{today_str}T{hour:02d}:00'
             try:
-                idx = h_times.index(target)
-                icon, _ = _wx_emoji(h_codes[idx])
+                idx       = h_times.index(target)
+                hour_code = h_codes[idx]
             except (ValueError, IndexError):
-                icon = '–'
+                hour_code = None
 
             cell = tk.Frame(self._row, bg=self.BG)
             cell.pack(side='left', padx=3)
-            tk.Label(cell, text=lbl,  bg=self.BG, fg=self.FG_DIM, font=self.f_tiny).pack()
-            tk.Label(cell, text=icon, bg=self.BG, fg=self.FG,      font=self.f_main).pack()
+            tk.Label(cell, text=lbl, bg=self.BG, fg=self.FG_DIM, font=self.f_tiny).pack()
+            if hour_code is not None:
+                self._icon_label(cell, hour_code, self.f_main).pack()
+            else:
+                tk.Label(cell, text='–', bg=self.BG, fg=self.FG_DIM, font=self.f_main).pack()
 
         # Next 7 days — pack as many as fit; the banner clips anything beyond the edge
         for i in range(1, 8):
@@ -262,7 +370,7 @@ class WeatherWidget(tk.Frame):
                 break
             d_str  = daily['time'][i]
             d_dt   = datetime.strptime(d_str, '%Y-%m-%d')
-            d_icon, _ = _wx_emoji(daily['weather_code'][i])
+            d_code = daily['weather_code'][i]
             d_high = daily['temperature_2m_max'][i]
             d_low  = daily['temperature_2m_min'][i]
 
@@ -271,11 +379,14 @@ class WeatherWidget(tk.Frame):
             )
             cell = tk.Frame(self._row, bg=self.BG)
             cell.pack(side='left', padx=3)
+            top = tk.Frame(cell, bg=self.BG)
+            top.pack()
+            self._icon_label(top, d_code, self.f_tiny).pack(side='left')
+            tk.Label(top,
+                     text=f" {d_dt.strftime('%a %-d')}",
+                     bg=self.BG, fg=self.FG, font=self.f_tiny).pack(side='left')
             tk.Label(cell,
-                     text=f"{d_icon} {d_dt.strftime('%a %-d')}",
-                     bg=self.BG, fg=self.FG, font=self.f_tiny).pack()
-            tk.Label(cell,
-                     text=f"H:{self._fmt_temp(d_high, weather)}  L:{self._fmt_temp(d_low, weather)}",
+                     text=self._fmt_temp_range(d_low, d_high, forecast_units),
                      bg=self.BG, fg=self.FG_DIM, font=self.f_tiny).pack()
 
     # ── Periodic refresh ────────────────────────────────────────────────────

@@ -105,11 +105,13 @@ DEBUG = {
 WEATHER = {
     'enabled': False,               # Set to true to show the weather overlay
     'locations': ['Austin, TX'],    # List of city names to display (stacked vertically)
-    'units': 'fahrenheit',          # 'fahrenheit', 'celsius', or 'both'
+    'units': 'fahrenheit',          # today's temp: 'fahrenheit', 'celsius', or 'both'
+    'forecast_units': 'fahrenheit', # future days temp — defaults to 'units' if omitted
     'update_interval_minutes': 30,  # How often to refresh weather data
     'margin_pct': 0.5,              # Screen-edge margin as % of screen width (top gap)
     'scale': 1.0,                   # Font size multiplier (e.g. 1.5 for larger text on Pi)
     'y_offset': 0,                  # Pixels from top of screen where the banner is placed
+    'icon_size': 24,                # Weather icon size in pixels
 }
 
 # === Memory Management Settings ===
