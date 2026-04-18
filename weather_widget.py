@@ -6,6 +6,7 @@
 import os
 import difflib
 import tkinter as tk
+import tkinter.font as tkfont
 import threading
 import urllib.request
 import urllib.parse
@@ -115,13 +116,12 @@ class WeatherWidget(tk.Frame):
         # ── Scale ───────────────────────────────────────────────────────────
         scale = self.cfg.get('scale', 1.0)
         def _fs(base): return max(1, round(base * scale))
-        self.f_loc   = ('DejaVu Sans', _fs(12), 'bold')
-        self.f_main  = ('DejaVu Sans', _fs(11))
-        self.f_small = ('DejaVu Sans', _fs(10))
-        self.f_tiny  = ('DejaVu Sans', _fs(9))
-        # Banner height: two stacked labels (f_tiny + f_main) + padding
-        # Use point-to-pixel ratio ~1.33 as a safe approximation
-        self._banner_h = round((_fs(9) + _fs(11)) * 1.33) + 16
+        # tkfont.Font objects serve dual purpose: canvas rendering + text measurement
+        self.f_loc   = tkfont.Font(family='DejaVu Sans', size=_fs(12), weight='bold')
+        self.f_main  = tkfont.Font(family='DejaVu Sans', size=_fs(11))
+        self.f_small = tkfont.Font(family='DejaVu Sans', size=_fs(10))
+        self.f_tiny  = tkfont.Font(family='DejaVu Sans', size=_fs(9))
+        self._banner_h = self.f_tiny.metrics('linespace') + self.f_main.metrics('linespace') + 16
 
         # ── Icons ────────────────────────────────────────────────────────────
         self._icon_size   = self.cfg.get('icon_size', 24)
@@ -131,11 +131,12 @@ class WeatherWidget(tk.Frame):
         if _PIL_AVAILABLE:
             threading.Thread(target=self._preload_icons, daemon=True).start()
 
-        # ── Single row frame ────────────────────────────────────────────────
-        self._row = tk.Frame(self, bg=self.BG,
-                             width=self.screen_width, height=self._banner_h)
-        self._row.pack_propagate(False)
-        self._row.pack(fill='both', expand=True)
+        # ── Canvas — single widget replaces all child Labels/Frames ─────────
+        # One canvas repaint = one XWayland call; avoids progressive rendering
+        # on every lift() after a photo change.
+        self._canvas = tk.Canvas(self, bg=self.BG, highlightthickness=0,
+                                 width=self.screen_width, height=self._banner_h)
+        self._canvas.pack(fill='both', expand=True)
 
         self._show_loading()
         self._fetch_all()
@@ -201,23 +202,25 @@ class WeatherWidget(tk.Frame):
         self._icon_cache[name] = photo
         return photo
 
-    def _icon_label(self, parent, code, font):
-        """Return a Label showing the icon image, or a text fallback."""
+    def _draw_icon(self, x, y, code):
+        """Draw icon (or text fallback) at canvas (x, y) anchor=nw. Returns x + icon_size."""
         icon_name, _ = _wx_icon_name(code)
         photo = self._load_icon(icon_name)
         if photo:
-            return tk.Label(parent, image=photo, bg=self.BG)
-        # Fallback: short text in muted colour
-        return tk.Label(parent, text=_wx_text(code),
-                        bg=self.BG, fg=self.FG, font=font)
+            self._canvas.create_image(x, y, image=photo, anchor='nw')
+        else:
+            s = self._icon_size
+            self._canvas.create_text(x + s//2, y + s//2,
+                                     text=_wx_text(code),
+                                     fill=self.FG, font=self.f_tiny, anchor='center')
+        return x + self._icon_size
 
     # ── Loading placeholder ─────────────────────────────────────────────────
 
     def _show_loading(self):
-        tk.Label(
-            self._row, text='  Loading weather…',
-            bg=self.BG, fg=self.FG_DIM, font=self.f_small,
-        ).pack(side='left', padx=8)
+        self._canvas.create_text(8, self._banner_h // 2,
+                                 text='Loading weather…',
+                                 fill=self.FG_DIM, font=self.f_small, anchor='w')
 
     # ── Data fetching (background thread) ───────────────────────────────────
 
@@ -297,32 +300,42 @@ class WeatherWidget(tk.Frame):
         self._rebuild()
 
     def _rebuild(self):
-        for w in self._row.winfo_children():
-            w.destroy()
+        self._canvas.delete('all')
 
+        x     = 0
         first = True
         for loc_name, coords, weather in self._results:
             if not first:
-                tk.Frame(self._row, bg=self.SEP_CLR, width=1).pack(
-                    side='left', fill='y', padx=6, pady=4
-                )
+                x += 6
+                self._canvas.create_rectangle(x, 4, x+1, self._banner_h-4,
+                                              fill=self.SEP_CLR, outline='')
+                x += 7
             first = False
+            display_name = coords.get('name', loc_name) if coords else loc_name
             if weather:
-                self._build_location(coords.get('name', loc_name) if coords else loc_name, weather)
+                x = self._draw_location(x, display_name, weather)
             else:
-                tk.Label(
-                    self._row, text=f'{loc_name}: unavailable',
-                    bg=self.BG, fg=self.FG_DIM, font=self.f_small,
-                ).pack(side='left', padx=8)
+                self._canvas.create_text(x+8, self._banner_h//2,
+                                         text=f'{display_name}: unavailable',
+                                         fill=self.FG_DIM, font=self.f_small, anchor='w')
 
         self.lift()
 
-    def _build_location(self, display_name, weather):
+    def _sep(self, x):
+        """Draw a vertical separator at x and return x advanced past it."""
+        self._canvas.create_rectangle(x+4, 4, x+5, self._banner_h-4,
+                                      fill=self.SEP_CLR, outline='')
+        return x + 9
+
+    def _draw_location(self, x, display_name, weather):
+        """Draw one location block onto the canvas starting at x. Returns new x."""
+        cv  = self._canvas
+        cy  = self._banner_h // 2
         daily  = weather.get('daily', {})
         hourly = weather.get('hourly', {})
 
         units          = self.cfg.get('units', 'fahrenheit')
-        forecast_units = self.cfg.get('forecast_units', units)  # falls back to units if unset
+        forecast_units = self.cfg.get('forecast_units', units)
 
         today_str  = daily['time'][0]
         today_dt   = datetime.strptime(today_str, '%Y-%m-%d')
@@ -330,38 +343,32 @@ class WeatherWidget(tk.Frame):
         today_high = daily['temperature_2m_max'][0]
         today_low  = daily['temperature_2m_min'][0]
 
-        # Location name
-        tk.Label(
-            self._row, text=display_name,
-            bg=self.BG, fg=self.FG_LOC, font=self.f_loc,
-        ).pack(side='left', padx=(8, 4))
+        # ── Location name ──────────────────────────────────────────────────
+        x += 8
+        cv.create_text(x, cy, text=display_name,
+                       fill=self.FG_LOC, font=self.f_loc, anchor='w')
+        x += self.f_loc.measure(display_name) + 4
+        x  = self._sep(x)
 
-        # Thin separator
-        tk.Frame(self._row, bg=self.SEP_CLR, width=1).pack(
-            side='left', fill='y', padx=4, pady=4
-        )
+        # ── Today: icon + date + H/L ───────────────────────────────────────
+        x += 4
+        x  = self._draw_icon(x, cy - self._icon_size//2, today_code)
+        x += 2
 
-        # Today icon + date + H/L
-        self._icon_label(self._row, today_code, self.f_main).pack(
-            side='left', padx=(4, 2))
-        tk.Label(
-            self._row,
-            text=today_dt.strftime('%a %-d'),
-            bg=self.BG, fg=self.FG, font=self.f_main,
-        ).pack(side='left', padx=(0, 2))
+        date_str = today_dt.strftime('%a %-d')
+        cv.create_text(x, cy, text=date_str, fill=self.FG, font=self.f_main, anchor='w')
+        x += self.f_main.measure(date_str) + 8
 
-        tk.Label(
-            self._row,
-            text=f"H:{self._fmt_temp(today_high, units)}  L:{self._fmt_temp(today_low, units)}",
-            bg=self.BG, fg=self.FG_DIM, font=self.f_small,
-        ).pack(side='left', padx=(2, 8))
+        hl = f"H:{self._fmt_temp(today_high, units)}  L:{self._fmt_temp(today_low, units)}"
+        cv.create_text(x, cy, text=hl, fill=self.FG_DIM, font=self.f_small, anchor='w')
+        x += self.f_small.measure(hl) + 8
+        x  = self._sep(x)
 
-        # Thin separator before hourly
-        tk.Frame(self._row, bg=self.SEP_CLR, width=1).pack(
-            side='left', fill='y', padx=4, pady=4
-        )
+        # ── Hourly cells ───────────────────────────────────────────────────
+        lbl_h  = self.f_tiny.metrics('linespace')
+        cell_h = lbl_h + 2 + self._icon_size
+        top_y  = cy - cell_h // 2
 
-        # Hourly forecast cells
         h_times = hourly.get('time', [])
         h_codes = hourly.get('weather_code', [])
 
@@ -373,38 +380,57 @@ class WeatherWidget(tk.Frame):
             except (ValueError, IndexError):
                 hour_code = None
 
-            cell = tk.Frame(self._row, bg=self.BG)
-            cell.pack(side='left', padx=3)
-            tk.Label(cell, text=lbl, bg=self.BG, fg=self.FG_DIM, font=self.f_tiny).pack()
+            x      += 3
+            lbl_w   = self.f_tiny.measure(lbl)
+            cell_w  = max(self._icon_size, lbl_w)
+
+            cv.create_text(x + (cell_w - lbl_w)//2, top_y,
+                           text=lbl, fill=self.FG_DIM, font=self.f_tiny, anchor='nw')
+
+            icon_x = x + (cell_w - self._icon_size)//2
+            icon_y = top_y + lbl_h + 2
             if hour_code is not None:
-                self._icon_label(cell, hour_code, self.f_main).pack()
+                self._draw_icon(icon_x, icon_y, hour_code)
             else:
-                tk.Label(cell, text='–', bg=self.BG, fg=self.FG_DIM, font=self.f_main).pack()
+                cv.create_text(icon_x + self._icon_size//2, icon_y + self._icon_size//2,
+                               text='–', fill=self.FG_DIM, font=self.f_main, anchor='center')
+            x += cell_w + 3
 
-        # Next 7 days — pack as many as fit; the banner clips anything beyond the edge
+        # ── 7-day forecast ─────────────────────────────────────────────────
+        tiny_lh = self.f_tiny.metrics('linespace')
+        row1_h  = max(self._icon_size, tiny_lh)
+        fc_top  = cy - (row1_h + 2 + tiny_lh) // 2
+
         for i in range(1, 8):
-            if i >= len(daily.get('time', [])):
+            if i >= len(daily.get('time', [])) or x >= self.screen_width:
                 break
-            d_str  = daily['time'][i]
-            d_dt   = datetime.strptime(d_str, '%Y-%m-%d')
-            d_code = daily['weather_code'][i]
-            d_high = daily['temperature_2m_max'][i]
-            d_low  = daily['temperature_2m_min'][i]
+            d_str     = daily['time'][i]
+            d_dt      = datetime.strptime(d_str, '%Y-%m-%d')
+            d_code    = daily['weather_code'][i]
+            d_high    = daily['temperature_2m_max'][i]
+            d_low     = daily['temperature_2m_min'][i]
+            day_str   = d_dt.strftime('%a %-d')
+            range_str = self._fmt_temp_range(d_low, d_high, forecast_units)
 
-            tk.Frame(self._row, bg=self.SEP_CLR, width=1).pack(
-                side='left', fill='y', padx=4, pady=4
-            )
-            cell = tk.Frame(self._row, bg=self.BG)
-            cell.pack(side='left', padx=3)
-            top = tk.Frame(cell, bg=self.BG)
-            top.pack()
-            self._icon_label(top, d_code, self.f_tiny).pack(side='left')
-            tk.Label(top,
-                     text=f" {d_dt.strftime('%a %-d')}",
-                     bg=self.BG, fg=self.FG, font=self.f_tiny).pack(side='left')
-            tk.Label(cell,
-                     text=self._fmt_temp_range(d_low, d_high, forecast_units),
-                     bg=self.BG, fg=self.FG_DIM, font=self.f_tiny).pack()
+            row1_w = self._icon_size + 3 + self.f_tiny.measure(day_str)
+            cell_w = max(row1_w, self.f_tiny.measure(range_str))
+
+            x = self._sep(x)
+
+            # Row 1: icon + day name side by side
+            icon_top = fc_top + (row1_h - self._icon_size)//2
+            self._draw_icon(x, icon_top, d_code)
+            text_top = fc_top + (row1_h - tiny_lh)//2
+            cv.create_text(x + self._icon_size + 3, text_top,
+                           text=day_str, fill=self.FG, font=self.f_tiny, anchor='nw')
+
+            # Row 2: temp range
+            cv.create_text(x, fc_top + row1_h + 2,
+                           text=range_str, fill=self.FG_DIM, font=self.f_tiny, anchor='nw')
+
+            x += cell_w + 3
+
+        return x
 
     # ── Periodic refresh ────────────────────────────────────────────────────
 
