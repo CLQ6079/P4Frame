@@ -124,8 +124,12 @@ class WeatherWidget(tk.Frame):
         self._banner_h = round((_fs(9) + _fs(11)) * 1.33) + 16
 
         # ── Icons ────────────────────────────────────────────────────────────
-        self._icon_size  = self.cfg.get('icon_size', 24)
-        self._icon_cache = {}   # name → ImageTk.PhotoImage (kept to prevent GC)
+        self._icon_size   = self.cfg.get('icon_size', 24)
+        self._pil_cache   = {}     # name → PIL Image (background-loaded)
+        self._icon_cache  = {}     # name → ImageTk.PhotoImage (main-thread, GC anchor)
+        self._icons_ready = False
+        if _PIL_AVAILABLE:
+            threading.Thread(target=self._preload_icons, daemon=True).start()
 
         # ── Single row frame ────────────────────────────────────────────────
         self._row = tk.Frame(self, bg=self.BG,
@@ -139,50 +143,63 @@ class WeatherWidget(tk.Frame):
 
     # ── Icon loading ────────────────────────────────────────────────────────
 
-    def _load_icon(self, name):
-        """Return a cached ImageTk.PhotoImage for *name*, or None on failure.
+    def _preload_icons(self):
+        """Background thread: open + resize every needed icon into _pil_cache.
 
-        If the exact file is missing, tries a fuzzy match against whatever
-        PNGs are present in the icons directory before giving up.
+        Fuzzy matching is done here so the main thread never touches the disk.
+        """
+        if not os.path.isdir(_ICONS_DIR):
+            logging.warning(f'WeatherWidget: icons directory not found: {_ICONS_DIR}')
+            self._icons_ready = True
+            return
+
+        available = {f[:-4]: f for f in os.listdir(_ICONS_DIR) if f.endswith('.png')}
+        wanted    = {stem for stem, _ in WEATHER_CODE_ICONS.values()}
+
+        for name in wanted:
+            if name in available:
+                resolved = name
+            else:
+                matches = difflib.get_close_matches(name, available, n=1, cutoff=0.4)
+                if not matches:
+                    logging.warning(f'WeatherWidget: no icon found for "{name}"')
+                    self._pil_cache[name] = None
+                    continue
+                resolved = matches[0]
+                logging.info(f'WeatherWidget: icon "{name}" → "{resolved}" (fuzzy)')
+
+            try:
+                path = os.path.join(_ICONS_DIR, available[resolved])
+                img  = Image.open(path).convert('RGBA').resize(
+                    (self._icon_size, self._icon_size), Image.LANCZOS)
+                self._pil_cache[name]     = img
+                self._pil_cache[resolved] = img   # alias so both keys hit
+            except Exception as exc:
+                logging.warning(f'WeatherWidget: failed to load icon "{name}": {exc}')
+                self._pil_cache[name] = None
+
+        self._icons_ready = True
+        logging.info(f'WeatherWidget: preloaded {sum(v is not None for v in self._pil_cache.values())} icons')
+
+    def _load_icon(self, name):
+        """Return an ImageTk.PhotoImage for *name*, converting from _pil_cache.
+
+        PIL work is already done off-thread; this only does the fast Tk conversion.
+        Falls back to None (text label) if icons aren't ready yet or file was missing.
         """
         if name in self._icon_cache:
             return self._icon_cache[name]
-        if not _PIL_AVAILABLE:
-            return None
+        if not self._icons_ready:
+            return None   # preload still running — text fallback until next rebuild
 
-        path = os.path.join(_ICONS_DIR, f'{name}.png')
-
-        if not os.path.isfile(path):
-            # Fuzzy-match against available PNGs
-            resolved = self._fuzzy_resolve_icon(name)
-            if resolved:
-                path = os.path.join(_ICONS_DIR, f'{resolved}.png')
-                logging.info(f'WeatherWidget: icon "{name}" → using "{resolved}" (fuzzy match)')
-            else:
-                logging.warning(f'WeatherWidget: icon "{name}" not found and no close match')
-                self._icon_cache[name] = None
-                return None
-
-        try:
-            img = Image.open(path).convert('RGBA')
-            img = img.resize((self._icon_size, self._icon_size), Image.LANCZOS)
-            photo = ImageTk.PhotoImage(img)
-            self._icon_cache[name] = photo
-            return photo
-        except Exception as exc:
-            logging.warning(f'WeatherWidget: could not load icon "{name}": {exc}')
+        pil_img = self._pil_cache.get(name)
+        if pil_img is None:
             self._icon_cache[name] = None
             return None
 
-    def _fuzzy_resolve_icon(self, name):
-        """Return the closest available icon stem for *name*, or None."""
-        if not os.path.isdir(_ICONS_DIR):
-            return None
-        available = [f[:-4] for f in os.listdir(_ICONS_DIR) if f.endswith('.png')]
-        if not available:
-            return None
-        matches = difflib.get_close_matches(name, available, n=1, cutoff=0.4)
-        return matches[0] if matches else None
+        photo = ImageTk.PhotoImage(pil_img)
+        self._icon_cache[name] = photo
+        return photo
 
     def _icon_label(self, parent, code, font):
         """Return a Label showing the icon image, or a text fallback."""
